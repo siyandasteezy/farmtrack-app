@@ -15,6 +15,7 @@ export function DataProvider({ children }) {
   const [feed,       setFeed]       = useState(INITIAL_FEED);
   const [equipment,  setEquipment]  = useState(INITIAL_EQUIPMENT);
   const [tickets,    setTickets]    = useState(INITIAL_TICKETS);
+  const [devices,    setDevices]    = useState([]);
   const [nextId,     setNextId]     = useState(200);
 
   const newId = () => { const id = nextId; setNextId(n => n + 1); return id; };
@@ -75,6 +76,11 @@ export function DataProvider({ children }) {
   const updateEquipment = (e)  => setEquipment(p => p.map(x => x.id === e.id ? e : x));
   const removeEquipment = (id) => setEquipment(p => p.filter(x => x.id !== id));
 
+  // Devices (physical sensor hardware registrations)
+  const addDevice    = (d)  => setDevices(p => [...p, { ...d, id: `dev-${newId()}`, status: 'pending', lastSeen: null, createdAt: new Date().toISOString() }]);
+  const updateDevice = (d)  => setDevices(p => p.map(x => x.id === d.id ? d : x));
+  const removeDevice = (id) => setDevices(p => p.filter(x => x.id !== id));
+
   // Tickets
   const addTicket    = (t)  => setTickets(p => [{ ...t, id: `tk-${newId()}`, createdAt: new Date().toISOString().slice(0,10), updatedAt: new Date().toISOString().slice(0,10) }, ...p]);
   const updateTicket = (t)  => setTickets(p => p.map(x => x.id === t.id ? { ...t, updatedAt: new Date().toISOString().slice(0,10) } : x));
@@ -87,6 +93,7 @@ export function DataProvider({ children }) {
       sensors, addSensor, removeSensor, updateSensor, addManualReading, clearManualOverride, manualReadings,
       feed,       updateFeed,   addFeedStock,
       equipment,  addEquipment, updateEquipment, removeEquipment,
+      devices,    addDevice,    updateDevice,    removeDevice,
       tickets,    addTicket,    updateTicket,    removeTicket,
     }}>
       {children}

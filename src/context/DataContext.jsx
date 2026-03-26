@@ -30,7 +30,9 @@ export function DataProvider({ children }) {
   const removeHealth = (id) => setHealth(p => p.filter(x => x.id !== id));
 
   // Sensors
-  const updateSensor = (s) => setSensors(p => p.map(x => x.id === s.id ? s : x));
+  const addSensor    = (s)  => setSensors(p => [...p, { ...s, id: newId(), isManual: false }]);
+  const removeSensor = (id) => setSensors(p => p.filter(x => x.id !== id));
+  const updateSensor = (s)  => setSensors(p => p.map(x => x.id === s.id ? s : x));
   const addManualReading = (reading) => {
     const sensor = sensors.find(s => s.id === reading.sensorId);
     const numVal = parseFloat(reading.value);
@@ -82,7 +84,7 @@ export function DataProvider({ children }) {
     <DataContext.Provider value={{
       livestock,  addAnimal,    updateAnimal,  removeAnimal,
       health,     addHealth,    updateHealth,  removeHealth,
-      sensors, updateSensor, addManualReading, clearManualOverride, manualReadings,
+      sensors, addSensor, removeSensor, updateSensor, addManualReading, clearManualOverride, manualReadings,
       feed,       updateFeed,   addFeedStock,
       equipment,  addEquipment, updateEquipment, removeEquipment,
       tickets,    addTicket,    updateTicket,    removeTicket,

@@ -10,7 +10,8 @@ const DataContext = createContext(null);
 export function DataProvider({ children }) {
   const [livestock,  setLivestock]  = useState(INITIAL_LIVESTOCK);
   const [health,     setHealth]     = useState(INITIAL_HEALTH);
-  const [sensors]                   = useState(INITIAL_SENSORS);
+  const [sensors,      setSensors]      = useState(INITIAL_SENSORS);
+  const [manualReadings, setManualReadings] = useState([]);
   const [feed,       setFeed]       = useState(INITIAL_FEED);
   const [equipment,  setEquipment]  = useState(INITIAL_EQUIPMENT);
   const [tickets,    setTickets]    = useState(INITIAL_TICKETS);
@@ -27,6 +28,36 @@ export function DataProvider({ children }) {
   const addHealth    = (h)  => setHealth(p => [{ ...h, id: newId() }, ...p]);
   const updateHealth = (h)  => setHealth(p => p.map(x => x.id === h.id ? h : x));
   const removeHealth = (id) => setHealth(p => p.filter(x => x.id !== id));
+
+  // Sensors
+  const updateSensor = (s) => setSensors(p => p.map(x => x.id === s.id ? s : x));
+  const addManualReading = (reading) => {
+    const sensor = sensors.find(s => s.id === reading.sensorId);
+    const numVal = parseFloat(reading.value);
+    const newStatus = numVal < (sensor?.min ?? 0) ? 'alert' : numVal > (sensor?.max ?? 9999) ? 'warn' : 'normal';
+    const entry = {
+      id: `mr-${newId()}`,
+      sensorId: reading.sensorId,
+      sensorName: sensor?.name || '',
+      location: sensor?.location || '',
+      unit: sensor?.unit || '',
+      value: numVal,
+      reason: reading.reason,
+      notes: reading.notes || '',
+      loggedAt: new Date().toISOString(),
+    };
+    setManualReadings(p => [entry, ...p]);
+    if (sensor) {
+      setSensors(p => p.map(x => x.id === sensor.id
+        ? { ...x, value: numVal, status: newStatus, isManual: true, lastManualAt: entry.loggedAt }
+        : x
+      ));
+    }
+  };
+  const clearManualOverride = (sensorId) => {
+    const original = INITIAL_SENSORS.find(s => s.id === sensorId);
+    if (original) setSensors(p => p.map(x => x.id === sensorId ? { ...original } : x));
+  };
 
   // Feed
   const updateFeed   = (f)  => setFeed(p => p.map(x => x.id === f.id ? f : x));
@@ -51,7 +82,7 @@ export function DataProvider({ children }) {
     <DataContext.Provider value={{
       livestock,  addAnimal,    updateAnimal,  removeAnimal,
       health,     addHealth,    updateHealth,  removeHealth,
-      sensors,
+      sensors, updateSensor, addManualReading, clearManualOverride, manualReadings,
       feed,       updateFeed,   addFeedStock,
       equipment,  addEquipment, updateEquipment, removeEquipment,
       tickets,    addTicket,    updateTicket,    removeTicket,

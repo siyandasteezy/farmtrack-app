@@ -16,6 +16,7 @@ export function DataProvider({ children }) {
   const [equipment,  setEquipment]  = useState(INITIAL_EQUIPMENT);
   const [tickets,    setTickets]    = useState(INITIAL_TICKETS);
   const [devices,    setDevices]    = useState([]);
+  const [farmBoundary, setFarmBoundary] = useState({ lat: -33.7300, lng: 19.0100, radius: 450 });
   const [nextId,     setNextId]     = useState(200);
 
   const newId = () => { const id = nextId; setNextId(n => n + 1); return id; };
@@ -94,6 +95,7 @@ export function DataProvider({ children }) {
       feed,       updateFeed,   addFeedStock,
       equipment,  addEquipment, updateEquipment, removeEquipment,
       devices,    addDevice,    updateDevice,    removeDevice,
+      farmBoundary, setFarmBoundary,
       tickets,    addTicket,    updateTicket,    removeTicket,
     }}>
       {children}

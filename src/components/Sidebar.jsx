@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Beef, HeartPulse, Activity,
-  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard,
+  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
@@ -15,6 +15,7 @@ const NAV = [
   { to: '/regulations', label: 'Regulations',      Icon: Scale },
   { to: '/reports',     label: 'Reports',          Icon: BarChart2 },
   { to: '/equipment',   label: 'Equipment',        Icon: Wrench },
+  { to: '/tracking',    label: 'Animal Tracking',  Icon: MapPin },
 ];
 
 export function Sidebar({ open, onClose }) {

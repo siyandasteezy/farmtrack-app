@@ -15,6 +15,7 @@ import Regulations from './pages/Regulations';
 import Reports     from './pages/Reports';
 import Billing     from './pages/Billing';
 import Equipment   from './pages/Equipment';
+import Tracking    from './pages/Tracking';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="/regulations" element={<Regulations />} />
         <Route path="/reports"     element={<Reports />} />
         <Route path="/equipment"   element={<Equipment />} />
+        <Route path="/tracking"    element={<Tracking />} />
         <Route path="/billing"     element={<Billing />} />
       </Route>
 

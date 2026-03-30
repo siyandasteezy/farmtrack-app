@@ -1,29 +1,57 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Tooltip } from 'react-leaflet';
+import { useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useData } from '../context/DataContext';
-import { MapPin, List, Battery, BatteryLow, Wifi, Clock, X, AlertTriangle } from 'lucide-react';
+import {
+  MapPin, List, Battery, BatteryLow, Wifi, Clock, X,
+  AlertTriangle, Satellite, Map, Navigation,
+} from 'lucide-react';
 import clsx from 'clsx';
 
-/* ── Farm Zone Layout ────────────────────────────────────────────────
-   SVG viewBox: "0 0 720 460"
-   Each zone: { x, y, w, h, color, border, emoji }
-──────────────────────────────────────────────────────────────────── */
-const FARM_ZONES = {
-  'Paddock A':   { x:10,  y:10,  w:200, h:200, color:'#dcfce7', border:'#4ade80', emoji:'🐄', label:'Paddock A'   },
-  'Barn 1':      { x:220, y:10,  w:160, h:90,  color:'#fefce8', border:'#fde047', emoji:'🏠', label:'Barn 1'      },
-  'Stable 1':    { x:220, y:110, w:160, h:100, color:'#fdf4ff', border:'#d8b4fe', emoji:'🐴', label:'Stable 1'    },
-  'Field B':     { x:390, y:10,  w:160, h:200, color:'#f0fdf4', border:'#86efac', emoji:'🌾', label:'Field B'     },
-  'Hen House 1': { x:560, y:10,  w:150, h:90,  color:'#fffbeb', border:'#fcd34d', emoji:'🐔', label:'Hen House 1' },
-  'Hen House 2': { x:560, y:110, w:150, h:100, color:'#fffbeb', border:'#fcd34d', emoji:'🐔', label:'Hen House 2' },
-  'Field C':     { x:10,  y:220, w:200, h:120, color:'#f0fdf4', border:'#6ee7b7', emoji:'🐐', label:'Field C'     },
-  'Pen 1':       { x:220, y:220, w:90,  h:120, color:'#fdf2f8', border:'#f0abfc', emoji:'🐷', label:'Pen 1'       },
-  'Farrowing':   { x:320, y:220, w:60,  h:120, color:'#fff7ed', border:'#fdba74', emoji:'🐷', label:'Farrowing'   },
-  'Field D':     { x:390, y:220, w:160, h:120, color:'#fefce8', border:'#bef264', emoji:'🦙', label:'Field D'     },
-  'Orchard':     { x:560, y:220, w:150, h:120, color:'#fafaf9', border:'#a8a29e', emoji:'🌳', label:'Orchard'     },
-  'Quarantine':  { x:10,  y:350, w:150, h:100, color:'#fff1f2', border:'#fca5a5', emoji:'🚨', label:'Quarantine'  },
-  'Field E':     { x:170, y:350, w:200, h:100, color:'#f0fdf4', border:'#6ee7b7', emoji:'🦌', label:'Field E'     },
-  'Pond Area':   { x:380, y:350, w:130, h:100, color:'#eff6ff', border:'#93c5fd', emoji:'🐟', label:'Pond Area'   },
-  'Hutch Row A': { x:520, y:350, w:190, h:100, color:'#f5f5f4', border:'#d6d3d1', emoji:'🐇', label:'Hutch Row A' },
+// Fix Leaflet default icon missing asset issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '', iconRetinaUrl: '' });
+
+/* ── Farm Config ────────────────────────────────────────────────────── */
+
+// Farm centroid (Paarl, Western Cape, SA — adjust to real coords in production)
+const FARM_CENTER = [-33.7300, 19.0100];
+const FARM_RADIUS = 450; // metres — geofence boundary
+
+const TILE_LAYERS = {
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri &mdash; Esri, DeLorme, NAVTEQ',
+  },
+  street: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
 };
+
+/* ── Farm Zone Layout (SVG schematic) ──────────────────────────────── */
+
+const FARM_ZONES = {
+  'Paddock A':   { x:10,  y:10,  w:200, h:200, color:'#dcfce7', border:'#4ade80', label:'Paddock A'   },
+  'Barn 1':      { x:220, y:10,  w:160, h:90,  color:'#fefce8', border:'#fde047', label:'Barn 1'      },
+  'Stable 1':    { x:220, y:110, w:160, h:100, color:'#fdf4ff', border:'#d8b4fe', label:'Stable 1'    },
+  'Field B':     { x:390, y:10,  w:160, h:200, color:'#f0fdf4', border:'#86efac', label:'Field B'     },
+  'Hen House 1': { x:560, y:10,  w:150, h:90,  color:'#fffbeb', border:'#fcd34d', label:'Hen House 1' },
+  'Hen House 2': { x:560, y:110, w:150, h:100, color:'#fffbeb', border:'#fcd34d', label:'Hen House 2' },
+  'Field C':     { x:10,  y:220, w:200, h:120, color:'#f0fdf4', border:'#6ee7b7', label:'Field C'     },
+  'Pen 1':       { x:220, y:220, w:90,  h:120, color:'#fdf2f8', border:'#f0abfc', label:'Pen 1'       },
+  'Farrowing':   { x:320, y:220, w:60,  h:120, color:'#fff7ed', border:'#fdba74', label:'Farrowing'   },
+  'Field D':     { x:390, y:220, w:160, h:120, color:'#fefce8', border:'#bef264', label:'Field D'     },
+  'Orchard':     { x:560, y:220, w:150, h:120, color:'#fafaf9', border:'#a8a29e', label:'Orchard'     },
+  'Quarantine':  { x:10,  y:350, w:150, h:100, color:'#fff1f2', border:'#fca5a5', label:'Quarantine'  },
+  'Field E':     { x:170, y:350, w:200, h:100, color:'#f0fdf4', border:'#6ee7b7', label:'Field E'     },
+  'Pond Area':   { x:380, y:350, w:130, h:100, color:'#eff6ff', border:'#93c5fd', label:'Pond Area'   },
+  'Hutch Row A': { x:520, y:350, w:190, h:100, color:'#f5f5f4', border:'#d6d3d1', label:'Hutch Row A' },
+};
+
+/* ── Species helpers ────────────────────────────────────────────────── */
 
 const SPECIES_MARKER = {
   Cattle:  { bg:'#16a34a', ring:'#dcfce7' },
@@ -53,22 +81,42 @@ const STATUS_STYLE = {
   Sold:       { bg:'#f1f5f9', border:'#cbd5e1', text:'#64748b' },
 };
 
-/* Stable pseudo-random position within a zone based on animal id */
+/* ── Geo helpers ────────────────────────────────────────────────────── */
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function outsideFarm(trk) {
+  if (!trk?.lat || !trk?.lng) return false;
+  return haversine(FARM_CENTER[0], FARM_CENTER[1], trk.lat, trk.lng) > FARM_RADIUS;
+}
+
+function formatDist(m) {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
+
+/* ── Schematic marker helpers ───────────────────────────────────────── */
+
 function markerPos(id, zone) {
   const a = Math.abs(Math.sin(id * 127.1 + 1) * 9999) % 1;
   const b = Math.abs(Math.sin(id * 311.7 + 7) * 9999) % 1;
-  return {
-    x: zone.x + 14 + a * (zone.w - 28),
-    y: zone.y + 18 + b * (zone.h - 36),
-  };
+  return { x: zone.x + 14 + a * (zone.w - 28), y: zone.y + 18 + b * (zone.h - 36) };
 }
+
+/* ── Shared helpers ─────────────────────────────────────────────────── */
 
 function relativeTime(iso) {
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (diff < 60)   return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
-  return `${Math.floor(diff/86400)}d ago`;
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 function BatteryBadge({ pct }) {
@@ -85,10 +133,11 @@ function BatteryBadge({ pct }) {
 
 /* ── Detail Panel ───────────────────────────────────────────────────── */
 
-function DetailPanel({ animal, healthRecords, onClose }) {
+function DetailPanel({ animal, healthRecords, distFromCenter, onClose }) {
   const st  = STATUS_STYLE[animal.status] || STATUS_STYLE.Healthy;
   const mk  = SPECIES_MARKER[animal.species] || SPECIES_MARKER.Cattle;
   const trk = animal.tracker;
+  const isOut = outsideFarm(trk);
   const lastHealth = healthRecords
     .filter(h => h.animalTag === animal.tag || h.animalId === animal.id)
     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
@@ -97,11 +146,17 @@ function DetailPanel({ animal, healthRecords, onClose }) {
     <div className="flex flex-col h-full" style={{ background: '#fff' }}>
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex-shrink-0"
-        style={{ background: `linear-gradient(135deg, ${mk.ring}, #fff)`, borderBottom: '1px solid #f1f5f9' }}>
+        style={{ background: isOut ? 'linear-gradient(135deg,#fff5f5,#fef2f2)' : `linear-gradient(135deg,${mk.ring},#fff)`, borderBottom: '1px solid #f1f5f9' }}>
+        {isOut && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3 text-xs font-bold"
+            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            <AlertTriangle size={13} /> OUTSIDE FARM BOUNDARY — {formatDist(distFromCenter)} from centre
+          </div>
+        )}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
-              style={{ background: mk.ring, border: `2px solid ${mk.bg}33` }}>
+              style={{ background: isOut ? '#fef2f2' : mk.ring, border: `2px solid ${isOut ? '#fca5a5' : mk.bg + '33'}` }}>
               {SPECIES_META[animal.species] || '🐾'}
             </div>
             <div>
@@ -109,12 +164,10 @@ function DetailPanel({ animal, healthRecords, onClose }) {
               <div className="text-xs text-slate-500 mt-0.5 font-mono font-bold">{animal.tag}</div>
             </div>
           </div>
-          <button onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100">
             <X size={16} />
           </button>
         </div>
-        {/* Status */}
         <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
           style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}>
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: st.text }} />
@@ -123,36 +176,28 @@ function DetailPanel({ animal, healthRecords, onClose }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
-
         {/* Tracker */}
         {trk ? (
           <div className="rounded-2xl p-4" style={{ background: '#0f172a', border: '1px solid #1e293b' }}>
             <div className="flex items-center gap-2 mb-3">
-              <Wifi size={13} color="#22c55e" />
-              <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Live Tracker</span>
+              <Wifi size={13} color={isOut ? '#f87171' : '#22c55e'} />
+              <span className={clsx('text-xs font-bold uppercase tracking-wider', isOut ? 'text-red-400' : 'text-green-400')}>
+                {isOut ? '⚠ Outside Farm' : 'Live Tracker'}
+              </span>
             </div>
             <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div>
-                <div className="text-slate-500 mb-0.5">Device</div>
-                <div className="font-mono font-bold text-white">{trk.deviceId}</div>
-              </div>
-              <div>
-                <div className="text-slate-500 mb-0.5">Battery</div>
-                <BatteryBadge pct={trk.battery} />
-              </div>
-              <div className="col-span-2">
-                <div className="text-slate-500 mb-0.5">Last seen</div>
-                <div className="font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Clock size={11} className="text-slate-500" />
-                  {relativeTime(trk.lastSeen)} · {new Date(trk.lastSeen).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+              <div><div className="text-slate-500 mb-0.5">Device</div><div className="font-mono font-bold text-white">{trk.deviceId}</div></div>
+              <div><div className="text-slate-500 mb-0.5">Battery</div><BatteryBadge pct={trk.battery} /></div>
+              <div><div className="text-slate-500 mb-0.5">Last seen</div><div className="font-semibold text-slate-300 flex items-center gap-1.5"><Clock size={11} className="text-slate-500" />{relativeTime(trk.lastSeen)}</div></div>
+              {trk.lat && trk.lng && (
+                <div><div className="text-slate-500 mb-0.5">Coordinates</div><div className="font-mono text-[10px] text-slate-300">{trk.lat.toFixed(5)}, {trk.lng.toFixed(5)}</div></div>
+              )}
+              {distFromCenter != null && (
+                <div className="col-span-2">
+                  <div className="text-slate-500 mb-0.5">Distance from farm centre</div>
+                  <div className={clsx('font-bold text-sm', isOut ? 'text-red-400' : 'text-green-400')}>{formatDist(distFromCenter)}</div>
                 </div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-slate-500 mb-1">Signal</div>
-                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-green-500" style={{ width: `${trk.battery}%` }} />
-                </div>
-              </div>
+              )}
             </div>
           </div>
         ) : (
@@ -164,7 +209,7 @@ function DetailPanel({ animal, healthRecords, onClose }) {
 
         {/* Location */}
         <div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Location</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Registered Location</div>
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
             <MapPin size={14} className="text-green-600 flex-shrink-0" />
             <span className="text-sm font-semibold text-slate-700">{animal.location}</span>
@@ -223,11 +268,146 @@ function DetailPanel({ animal, healthRecords, onClose }) {
   );
 }
 
-/* ── Farm Map SVG ───────────────────────────────────────────────────── */
+/* ── Map auto-fit ───────────────────────────────────────────────────── */
 
-function FarmMap({ trackedAnimals, selected, onSelect }) {
+function MapFitter({ animals }) {
+  const map = useMap();
+  useEffect(() => {
+    const pts = animals.filter(a => a.tracker?.lat).map(a => [a.tracker.lat, a.tracker.lng]);
+    pts.push(FARM_CENTER);
+    if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
+  // only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+/* ── GPS Map ────────────────────────────────────────────────────────── */
+
+function GPSMap({ trackedAnimals, selected, onSelect }) {
+  const [mapType, setMapType] = useState('satellite');
+
+  const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker));
+
+  return (
+    <div>
+      {/* Escaped alert */}
+      {escaped.length > 0 && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3.5 rounded-2xl"
+          style={{ background: '#fff5f5', border: '2px solid #fca5a5' }}>
+          <AlertTriangle size={18} color="#ef4444" className="flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="text-sm font-extrabold text-red-700 mb-0.5">
+              🚨 {escaped.length} animal{escaped.length > 1 ? 's' : ''} detected outside farm boundary!
+            </div>
+            <div className="text-xs text-red-600">
+              {escaped.map(a => {
+                const dist = haversine(FARM_CENTER[0], FARM_CENTER[1], a.tracker.lat, a.tracker.lng);
+                return `${a.name} (${a.tag}) — ${formatDist(dist)} from centre, last seen ${relativeTime(a.tracker.lastSeen)}`;
+              }).join(' · ')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <div className="text-xs font-semibold">
+          {escaped.length === 0
+            ? <span className="text-green-600 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> All {trackedAnimals.length} animals within farm boundary</span>
+            : <span className="text-red-600">{escaped.length} outside · {trackedAnimals.length - escaped.length} within boundary</span>
+          }
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+          {[{ id: 'satellite', label: 'Satellite', Icon: Satellite }, { id: 'street', label: 'Street', Icon: Map }].map(t => (
+            <button key={t.id} onClick={() => setMapType(t.id)}
+              className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                mapType === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+              <t.Icon size={12} /> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Leaflet map */}
+      <div className="rounded-2xl overflow-hidden" style={{ height: 500, border: '1px solid #e2e8f0' }}>
+        <MapContainer center={FARM_CENTER} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl>
+          <TileLayer url={TILE_LAYERS[mapType].url} attribution={TILE_LAYERS[mapType].attribution} />
+          <MapFitter animals={trackedAnimals} />
+
+          {/* Geofence */}
+          <Circle center={FARM_CENTER} radius={FARM_RADIUS}
+            pathOptions={{
+              color: escaped.length > 0 ? '#ef4444' : '#22c55e',
+              fillColor: escaped.length > 0 ? '#ef4444' : '#22c55e',
+              fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+            }} />
+
+          {/* Farm centre pin */}
+          <CircleMarker center={FARM_CENTER} radius={5}
+            pathOptions={{ color: '#15803d', fillColor: '#16a34a', fillOpacity: 1, weight: 2 }}>
+            <Tooltip permanent direction="top" offset={[0, -8]}>
+              <span style={{ fontSize: 11, fontWeight: 700 }}>🏠 Farm Centre</span>
+            </Tooltip>
+          </CircleMarker>
+
+          {/* Animal markers */}
+          {trackedAnimals.filter(a => a.tracker?.lat).map(a => {
+            const isOut  = outsideFarm(a.tracker);
+            const isSel  = selected?.id === a.id;
+            const mk     = SPECIES_MARKER[a.species] || { bg: '#64748b' };
+            const emoji  = SPECIES_META[a.species] || '🐾';
+            const size   = isSel ? 42 : 34;
+            const bg     = isOut ? '#ef4444' : mk.bg;
+            const shadow = isOut
+              ? ',0 0 0 6px rgba(239,68,68,.35)'
+              : isSel ? `,0 0 0 5px ${mk.bg}55` : '';
+
+            const icon = L.divIcon({
+              className: '',
+              html: `<div style="
+                width:${size}px;height:${size}px;border-radius:50%;
+                background:${bg};border:3px solid white;
+                display:flex;align-items:center;justify-content:center;
+                font-size:${Math.round(size * 0.45)}px;
+                box-shadow:0 3px 10px rgba(0,0,0,.3)${shadow};
+                cursor:pointer;transition:all .15s;
+              ">${emoji}</div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            });
+
+            const dist = haversine(FARM_CENTER[0], FARM_CENTER[1], a.tracker.lat, a.tracker.lng);
+
+            return (
+              <Marker key={`${a.id}-${isSel}-${isOut}`}
+                position={[a.tracker.lat, a.tracker.lng]}
+                icon={icon}
+                eventHandlers={{ click: () => onSelect(isSel ? null : a) }}>
+                <Tooltip direction="top" offset={[0, -size / 2 - 4]}>
+                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.4 }}>
+                    {a.name} · {a.tag}
+                    {isOut && <div style={{ color: '#ef4444', fontWeight: 800 }}>🚨 OUTSIDE FARM — {formatDist(dist)}</div>}
+                    {!isOut && <div style={{ color: '#16a34a', fontSize: 11 }}>✓ Within boundary · {formatDist(dist)}</div>}
+                  </div>
+                </Tooltip>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+      </div>
+
+      <p className="text-xs text-slate-400 mt-2 text-center">
+        Dashed circle = {FARM_RADIUS}m farm geofence · Click any marker to view animal details
+      </p>
+    </div>
+  );
+}
+
+/* ── Farm Schematic (SVG plan) ──────────────────────────────────────── */
+
+function FarmSchematic({ trackedAnimals, selected, onSelect }) {
   const [hovered, setHovered] = useState(null);
-
   return (
     <div className="relative w-full overflow-auto rounded-2xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
       {/* Legend */}
@@ -241,36 +421,17 @@ function FarmMap({ trackedAnimals, selected, onSelect }) {
           </div>
         ))}
       </div>
-
-      {/* Compass */}
-      <div className="absolute bottom-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-slate-500"
-        style={{ background: 'rgba(255,255,255,.9)', border: '1px solid #e2e8f0' }}>
-        N
-      </div>
-
-      <svg
-        viewBox="0 0 720 460"
-        style={{ minWidth: 520, width: '100%', display: 'block' }}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Farm boundary */}
-        <rect x="5" y="5" width="710" height="450" rx="12"
-          fill="#f0fdf4" stroke="#bbf7d0" strokeWidth="2" strokeDasharray="8 4" />
-
-        {/* Zones */}
+      <svg viewBox="0 0 720 460" style={{ minWidth: 520, width: '100%', display: 'block' }}>
+        <rect x="5" y="5" width="710" height="450" rx="12" fill="#f0fdf4" stroke="#bbf7d0" strokeWidth="2" strokeDasharray="8 4" />
         {Object.entries(FARM_ZONES).map(([name, z]) => (
           <g key={name}>
-            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="8"
-              fill={z.color} stroke={z.border} strokeWidth="1.5" />
-            {/* Zone label */}
+            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="8" fill={z.color} stroke={z.border} strokeWidth="1.5" />
             <text x={z.x + z.w / 2} y={z.y + 13} textAnchor="middle"
               style={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700, fontFamily: 'ui-sans-serif,sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {z.label}
             </text>
           </g>
         ))}
-
-        {/* Animal markers */}
         {trackedAnimals.map(animal => {
           const zone = FARM_ZONES[animal.location];
           if (!zone) return null;
@@ -278,43 +439,20 @@ function FarmMap({ trackedAnimals, selected, onSelect }) {
           const mk   = SPECIES_MARKER[animal.species] || SPECIES_MARKER.Cattle;
           const isSel = selected?.id === animal.id;
           const isHov = hovered === animal.id;
-          const lowBat = animal.tracker?.battery < 20;
-
           return (
-            <g key={animal.id}
-              style={{ cursor: 'pointer' }}
+            <g key={animal.id} style={{ cursor: 'pointer' }}
               onClick={() => onSelect(isSel ? null : animal)}
               onMouseEnter={() => setHovered(animal.id)}
               onMouseLeave={() => setHovered(null)}>
-
-              {/* Selection ring */}
-              {(isSel || isHov) && (
-                <circle cx={pos.x} cy={pos.y} r="16"
-                  fill="none" stroke={mk.bg} strokeWidth="3" opacity="0.6" />
-              )}
-
-              {/* Marker background */}
-              <circle cx={pos.x} cy={pos.y} r={isSel ? 13 : 10}
-                fill={mk.bg} stroke="#fff" strokeWidth="2"
-                style={{ filter: isSel ? `drop-shadow(0 0 6px ${mk.bg}99)` : 'none', transition: 'r 0.15s' }} />
-
-              {/* Species emoji */}
-              <text x={pos.x} y={pos.y + 5} textAnchor="middle"
-                style={{ fontSize: isSel ? 13 : 10, userSelect: 'none', transition: 'font-size 0.15s' }}>
+              {(isSel || isHov) && <circle cx={pos.x} cy={pos.y} r="16" fill="none" stroke={mk.bg} strokeWidth="3" opacity="0.6" />}
+              <circle cx={pos.x} cy={pos.y} r={isSel ? 13 : 10} fill={mk.bg} stroke="#fff" strokeWidth="2"
+                style={{ filter: isSel ? `drop-shadow(0 0 6px ${mk.bg}99)` : 'none' }} />
+              <text x={pos.x} y={pos.y + 5} textAnchor="middle" style={{ fontSize: isSel ? 13 : 10, userSelect: 'none' }}>
                 {SPECIES_META[animal.species] || '🐾'}
               </text>
-
-              {/* Low battery warning dot */}
-              {lowBat && (
-                <circle cx={pos.x + 9} cy={pos.y - 8} r="4"
-                  fill="#ef4444" stroke="#fff" strokeWidth="1.5" />
-              )}
-
-              {/* Hover tooltip */}
               {isHov && !isSel && (
                 <g>
-                  <rect x={pos.x - 30} y={pos.y - 36} width={60} height={20} rx="6"
-                    fill="#0f172a" opacity="0.92" />
+                  <rect x={pos.x - 32} y={pos.y - 36} width={64} height={20} rx="6" fill="#0f172a" opacity="0.92" />
                   <text x={pos.x} y={pos.y - 22} textAnchor="middle"
                     style={{ fontSize: 9, fill: '#f1f5f9', fontWeight: 700, fontFamily: 'ui-sans-serif,sans-serif' }}>
                     {animal.name} · {animal.tag}
@@ -332,68 +470,68 @@ function FarmMap({ trackedAnimals, selected, onSelect }) {
 /* ── Tracked List ───────────────────────────────────────────────────── */
 
 function TrackedList({ allAnimals, onSelect }) {
-  const tracked = allAnimals.filter(a => a.tracker);
-  const untracked = allAnimals.filter(a => !a.tracker);
-
-  const Row = ({ a }) => {
-    const st  = STATUS_STYLE[a.status] || STATUS_STYLE.Healthy;
-    const trk = a.tracker;
-    return (
-      <tr className="hover:bg-slate-50/70 transition-colors cursor-pointer" onClick={() => onSelect(a)}>
-        <td className="py-3 pr-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0"
-              style={{ background: SPECIES_MARKER[a.species]?.ring || '#f1f5f9' }}>
-              {SPECIES_META[a.species]}
-            </div>
-            <div>
-              <div className="font-bold text-slate-800 text-sm leading-tight">{a.name}</div>
-              <div className="text-[11px] font-mono font-bold text-slate-400">{a.tag}</div>
-            </div>
-          </div>
-        </td>
-        <td className="py-3 pr-4 text-xs text-slate-600 font-semibold">{a.species}</td>
-        <td className="py-3 pr-4">
-          <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-slate-100 text-slate-600">📍 {a.location}</span>
-        </td>
-        <td className="py-3 pr-4">
-          <span className="text-[11px] font-bold px-2 py-1 rounded-lg" style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}>
-            {a.status}
-          </span>
-        </td>
-        {trk ? (
-          <>
-            <td className="py-3 pr-4"><BatteryBadge pct={trk.battery} /></td>
-            <td className="py-3 pr-4 text-xs text-slate-500 font-semibold">{relativeTime(trk.lastSeen)}</td>
-            <td className="py-3 text-[11px] font-mono text-slate-400">{trk.deviceId}</td>
-          </>
-        ) : (
-          <td colSpan={3} className="py-3 text-xs text-slate-300 italic">No tracker</td>
-        )}
-      </tr>
-    );
-  };
-
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div className="text-sm font-extrabold text-slate-700">All Animals</div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: '#16a34a' }}>{tracked.length} tracked</span>
-          <span className="font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500">{untracked.length} untracked</span>
+          <span className="font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: '#16a34a' }}>{allAnimals.filter(a => a.tracker).length} tracked</span>
+          <span className="font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500">{allAnimals.filter(a => !a.tracker).length} untracked</span>
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
-              {['Animal', 'Species', 'Location', 'Status', 'Battery', 'Last Seen', 'Device ID'].map(h => (
+              {['Animal', 'Species', 'Location', 'Status', 'Battery', 'Last Seen', 'Distance', 'Device ID'].map(h => (
                 <th key={h} className="pb-3 pr-4 pt-4 px-5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left whitespace-nowrap first:pl-5">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50 px-5">
-            {[...tracked, ...untracked].map(a => <Row key={a.id} a={a} />)}
+          <tbody className="divide-y divide-slate-50">
+            {[...allAnimals.filter(a => a.tracker), ...allAnimals.filter(a => !a.tracker)].map(a => {
+              const st  = STATUS_STYLE[a.status] || STATUS_STYLE.Healthy;
+              const trk = a.tracker;
+              const isOut = outsideFarm(trk);
+              const dist = trk?.lat ? haversine(FARM_CENTER[0], FARM_CENTER[1], trk.lat, trk.lng) : null;
+              return (
+                <tr key={a.id}
+                  className={clsx('transition-colors cursor-pointer', isOut ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50/70')}
+                  onClick={() => trk && onSelect(a)}>
+                  <td className="py-3 pr-4 pl-5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0"
+                        style={{ background: isOut ? '#fee2e2' : (SPECIES_MARKER[a.species]?.ring || '#f1f5f9') }}>
+                        {SPECIES_META[a.species]}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 text-sm leading-tight flex items-center gap-1.5">
+                          {a.name}
+                          {isOut && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-red-700 bg-red-100">OUTSIDE</span>}
+                        </div>
+                        <div className="text-[11px] font-mono font-bold text-slate-400">{a.tag}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-xs text-slate-600 font-semibold">{a.species}</td>
+                  <td className="py-3 pr-4"><span className="text-xs font-semibold px-2 py-1 rounded-lg bg-slate-100 text-slate-600">📍 {a.location}</span></td>
+                  <td className="py-3 pr-4"><span className="text-[11px] font-bold px-2 py-1 rounded-lg" style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}>{a.status}</span></td>
+                  {trk ? (
+                    <>
+                      <td className="py-3 pr-4"><BatteryBadge pct={trk.battery} /></td>
+                      <td className="py-3 pr-4 text-xs text-slate-500 font-semibold">{relativeTime(trk.lastSeen)}</td>
+                      <td className="py-3 pr-4 text-xs font-bold" style={{ color: isOut ? '#ef4444' : '#16a34a' }}>
+                        {dist != null ? formatDist(dist) : '—'}
+                        {isOut && ' ⚠'}
+                      </td>
+                      <td className="py-3 text-[11px] font-mono text-slate-400">{trk.deviceId}</td>
+                    </>
+                  ) : (
+                    <td colSpan={4} className="py-3 text-xs text-slate-300 italic">No tracker</td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -405,17 +543,28 @@ function TrackedList({ allAnimals, onSelect }) {
 
 export default function Tracking() {
   const { livestock, health } = useData();
-  const [view, setView]       = useState('map');
-  const [selected, setSelected] = useState(null);
+  const [view, setView]           = useState('gps');
+  const [selected, setSelected]   = useState(null);
 
   const trackedAnimals = useMemo(() => livestock.filter(a => a.tracker), [livestock]);
+  const escapedAnimals = useMemo(() => trackedAnimals.filter(a => outsideFarm(a.tracker)), [trackedAnimals]);
   const lowBattery     = useMemo(() => trackedAnimals.filter(a => a.tracker.battery < 20), [trackedAnimals]);
-  const onlineCount    = trackedAnimals.length; // all with trackers are "online" in simulation
+
+  const selectedDist = useMemo(() => {
+    if (!selected?.tracker?.lat) return null;
+    return haversine(FARM_CENTER[0], FARM_CENTER[1], selected.tracker.lat, selected.tracker.lng);
+  }, [selected]);
 
   const handleSelect = (animal) => {
     setSelected(animal);
-    if (animal && view === 'list') setView('map');
+    if (animal && view === 'list') setView('gps');
   };
+
+  const TABS = [
+    { id: 'gps',      label: 'GPS Map',    icon: <Navigation size={14} /> },
+    { id: 'schematic',label: 'Farm Plan',  icon: <MapPin size={14} /> },
+    { id: 'list',     label: 'List',       icon: <List size={14} /> },
+  ];
 
   return (
     <div className="flex flex-col gap-5 fade-in">
@@ -425,14 +574,21 @@ export default function Tracking() {
         <div>
           <h2 className="text-xl font-extrabold text-slate-800">Animal Tracking</h2>
           <p className="text-sm text-slate-400 mt-0.5">
-            Live GPS tracker map — {trackedAnimals.length} of {livestock.length} animals tracked
+            Live GPS map — {trackedAnimals.length} of {livestock.length} animals tracked
+            {escapedAnimals.length > 0 && <span className="ml-2 text-red-500 font-bold">· {escapedAnimals.length} outside boundary!</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {escapedAnimals.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl animate-pulse"
+              style={{ background: '#fff5f5', color: '#dc2626', border: '1px solid #fca5a5' }}>
+              <AlertTriangle size={13} /> {escapedAnimals.length} Escaped
+            </div>
+          )}
           <div className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl"
             style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', color: '#15803d', border: '1px solid #bbf7d0' }}>
             <div className="w-2 h-2 rounded-full bg-green-500 pulse" />
-            {onlineCount} Online
+            {trackedAnimals.length - escapedAnimals.length} On Farm
           </div>
         </div>
       </div>
@@ -440,21 +596,21 @@ export default function Tracking() {
       {/* Low battery alert */}
       {lowBattery.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm"
-          style={{ background: '#fff5f5', border: '1px solid #fca5a5' }}>
-          <AlertTriangle size={16} color="#ef4444" className="flex-shrink-0" />
-          <span className="text-red-700 font-semibold">
-            Low battery: {lowBattery.map(a => `${a.name} (${a.tracker.battery}%)`).join(', ')} — trackers need charging.
+          style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <BatteryLow size={16} color="#d97706" className="flex-shrink-0" />
+          <span className="text-amber-700 font-semibold">
+            Low battery warning: {lowBattery.map(a => `${a.name} (${a.tracker.battery}%)`).join(', ')} — charge or replace trackers soon.
           </span>
         </div>
       )}
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Tracked Animals', value: trackedAnimals.length,                               icon: '📡', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'Untracked',       value: livestock.length - trackedAnimals.length,             icon: '📍', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
-          { label: 'Zones Active',    value: new Set(trackedAnimals.map(a => a.location)).size,    icon: '🗺️',  color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
-          { label: 'Low Battery',     value: lowBattery.length,                                    icon: '🔋', color: '#ef4444', bg: '#fff5f5', border: '#fecaca' },
+          { label:'Tracked Animals',   value:trackedAnimals.length,                              icon:'📡', color:'#16a34a', bg:'#f0fdf4', border:'#bbf7d0' },
+          { label:'Outside Boundary',  value:escapedAnimals.length,                              icon:'🚨', color: escapedAnimals.length > 0 ? '#dc2626' : '#64748b', bg: escapedAnimals.length > 0 ? '#fff5f5' : '#f8fafc', border: escapedAnimals.length > 0 ? '#fca5a5' : '#e2e8f0' },
+          { label:'Zones Active',      value:new Set(trackedAnimals.map(a=>a.location)).size,    icon:'🗺️',  color:'#3b82f6', bg:'#eff6ff', border:'#bfdbfe' },
+          { label:'Low Battery',       value:lowBattery.length,                                  icon:'🔋', color: lowBattery.length > 0 ? '#d97706' : '#64748b', bg: lowBattery.length > 0 ? '#fffbeb' : '#f8fafc', border: lowBattery.length > 0 ? '#fde68a' : '#e2e8f0' },
         ].map(s => (
           <div key={s.label} className="rounded-2xl p-4" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
             <div className="text-xl mb-1">{s.icon}</div>
@@ -464,59 +620,34 @@ export default function Tracking() {
         ))}
       </div>
 
-      {/* View toggle */}
+      {/* Tab switcher */}
       <div className="flex items-center gap-1 p-1 rounded-2xl w-fit" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-        {[{ id: 'map', label: 'Map View', icon: <MapPin size={14} /> }, { id: 'list', label: 'List View', icon: <List size={14} /> }].map(v => (
-          <button key={v.id} onClick={() => setView(v.id)}
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setView(t.id)}
             className={clsx('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all',
-              view === v.id ? 'text-slate-900 shadow-sm bg-white' : 'text-slate-500 hover:text-slate-700')}>
-            {v.icon}{v.label}
+              view === t.id ? 'text-slate-900 shadow-sm bg-white' : 'text-slate-500 hover:text-slate-700')}>
+            {t.icon}{t.label}
           </button>
         ))}
       </div>
 
-      {/* Map view */}
-      {view === 'map' && (
-        <div className="flex gap-4 items-start">
-          {/* Map */}
-          <div className="flex-1 min-w-0">
-            <FarmMap
-              trackedAnimals={trackedAnimals}
-              selected={selected}
-              onSelect={handleSelect}
-            />
-            <p className="text-xs text-slate-400 mt-2 text-center">
-              Click any animal marker to view details · Markers show approximate GPS position within zone
-            </p>
+      {/* Content */}
+      <div className="flex gap-4 items-start">
+        <div className="flex-1 min-w-0">
+          {view === 'gps'       && <GPSMap trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} />}
+          {view === 'schematic' && <FarmSchematic trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} />}
+          {view === 'list'      && <TrackedList allAnimals={livestock} onSelect={handleSelect} />}
+          {view !== 'list' && <p className="text-xs text-slate-400 mt-2 text-center hidden md:block">Click any animal marker to view details</p>}
+        </div>
+
+        {/* Detail panel — only shown when an animal is selected in map views */}
+        {selected && view !== 'list' && (
+          <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-xl flex flex-col"
+            style={{ border: '1px solid #e2e8f0', maxHeight: 'calc(100vh - 180px)', position: 'sticky', top: 16 }}>
+            <DetailPanel animal={selected} healthRecords={health} distFromCenter={selectedDist} onClose={() => setSelected(null)} />
           </div>
-
-          {/* Detail panel */}
-          {selected && (
-            <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-xl flex flex-col"
-              style={{ border: '1px solid #e2e8f0', maxHeight: 'calc(100vh - 180px)', position: 'sticky', top: 16 }}>
-              <DetailPanel
-                animal={selected}
-                healthRecords={health}
-                onClose={() => setSelected(null)}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* List view */}
-      {view === 'list' && (
-        <TrackedList allAnimals={livestock} onSelect={handleSelect} />
-      )}
-
-      {/* No trackers state */}
-      {trackedAnimals.length === 0 && (
-        <div className="rounded-2xl p-12 text-center" style={{ background: '#fff', border: '1px dashed #e2e8f0' }}>
-          <div className="text-4xl mb-3">📡</div>
-          <h3 className="text-base font-extrabold text-slate-700 mb-1">No GPS Trackers Active</h3>
-          <p className="text-sm text-slate-400">Assign a tracker device to an animal on the Livestock page to see it appear here.</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

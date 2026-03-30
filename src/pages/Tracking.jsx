@@ -1,6 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Tooltip } from 'react-leaflet';
-import { useMap } from 'react-leaflet';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useData } from '../context/DataContext';
@@ -9,10 +7,6 @@ import {
   AlertTriangle, Satellite, Map, Navigation,
 } from 'lucide-react';
 import clsx from 'clsx';
-
-// Fix Leaflet default icon missing asset issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '', iconRetinaUrl: '' });
 
 /* ── Farm Config ────────────────────────────────────────────────────── */
 
@@ -268,30 +262,113 @@ function DetailPanel({ animal, healthRecords, distFromCenter, onClose }) {
   );
 }
 
-/* ── Map auto-fit ───────────────────────────────────────────────────── */
+/* ── GPS Map (vanilla Leaflet — no react-leaflet hooks) ─────────────── */
 
-function MapFitter({ animals }) {
-  const map = useMap();
-  useEffect(() => {
-    const pts = animals.filter(a => a.tracker?.lat).map(a => [a.tracker.lat, a.tracker.lng]);
-    pts.push(FARM_CENTER);
-    if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
-  // only run once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
+function makeMarkerIcon(animal, isOut, isSel) {
+  const mk    = SPECIES_MARKER[animal.species] || { bg: '#64748b' };
+  const emoji = SPECIES_META[animal.species] || '🐾';
+  const size  = isSel ? 42 : 34;
+  const bg    = isOut ? '#ef4444' : mk.bg;
+  const shadow = isOut
+    ? ',0 0 0 6px rgba(239,68,68,.35)'
+    : isSel ? `,0 0 0 5px ${mk.bg}55` : '';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.45)}px;box-shadow:0 3px 10px rgba(0,0,0,.3)${shadow};cursor:pointer">${emoji}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
 }
 
-/* ── GPS Map ────────────────────────────────────────────────────────── */
-
 function GPSMap({ trackedAnimals, selected, onSelect }) {
+  const containerRef  = useRef(null);
+  const mapRef        = useRef(null);
+  const tileLayerRef  = useRef(null);
+  const markersRef    = useRef({});
+  const onSelectRef   = useRef(onSelect);
+  const selectedRef   = useRef(selected);
   const [mapType, setMapType] = useState('satellite');
+
+  // Keep refs current without re-initialising the map
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  // Initialise map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, { zoomControl: true });
+    mapRef.current = map;
+
+    tileLayerRef.current = L.tileLayer(TILE_LAYERS.satellite.url, {
+      attribution: TILE_LAYERS.satellite.attribution,
+    }).addTo(map);
+
+    const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker));
+
+    // Geofence
+    L.circle(FARM_CENTER, {
+      radius: FARM_RADIUS,
+      color: escaped.length > 0 ? '#ef4444' : '#22c55e',
+      fillColor: escaped.length > 0 ? '#ef4444' : '#22c55e',
+      fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+    }).addTo(map);
+
+    // Farm centre
+    L.circleMarker(FARM_CENTER, {
+      radius: 6, color: '#15803d', fillColor: '#16a34a', fillOpacity: 1, weight: 2,
+    }).addTo(map).bindTooltip('🏠 Farm Centre', { permanent: true, direction: 'top', offset: [0, -10] });
+
+    // Animal markers
+    const pts = [FARM_CENTER];
+    trackedAnimals.filter(a => a.tracker?.lat).forEach(animal => {
+      const isOut = outsideFarm(animal.tracker);
+      const dist  = haversine(FARM_CENTER[0], FARM_CENTER[1], animal.tracker.lat, animal.tracker.lng);
+      const tooltipHtml = `<div style="font-weight:700;font-size:12px;line-height:1.5">
+        ${animal.name} · ${animal.tag}
+        ${isOut
+          ? `<div style="color:#ef4444;font-weight:800">🚨 OUTSIDE FARM — ${formatDist(dist)}</div>`
+          : `<div style="color:#16a34a;font-size:11px">✓ Within boundary · ${formatDist(dist)}</div>`}
+      </div>`;
+
+      const marker = L.marker([animal.tracker.lat, animal.tracker.lng], {
+        icon: makeMarkerIcon(animal, isOut, false),
+      }).addTo(map).bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -20] });
+
+      marker.on('click', () => {
+        const cur = selectedRef.current;
+        onSelectRef.current(cur?.id === animal.id ? null : animal);
+      });
+
+      markersRef.current[animal.id] = { marker, animal };
+      pts.push([animal.tracker.lat, animal.tracker.lng]);
+    });
+
+    // Fit to all points
+    if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
+
+    return () => { map.remove(); mapRef.current = null; markersRef.current = {}; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Swap tile layer on toggle
+  useEffect(() => {
+    if (!mapRef.current || !tileLayerRef.current) return;
+    tileLayerRef.current.setUrl(TILE_LAYERS[mapType].url);
+  }, [mapType]);
+
+  // Update marker icons when selection changes
+  useEffect(() => {
+    Object.values(markersRef.current).forEach(({ marker, animal }) => {
+      const isOut = outsideFarm(animal.tracker);
+      const isSel = selected?.id === animal.id;
+      marker.setIcon(makeMarkerIcon(animal, isOut, isSel));
+    });
+  }, [selected]);
 
   const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker));
 
   return (
     <div>
-      {/* Escaped alert */}
       {escaped.length > 0 && (
         <div className="mb-4 flex items-start gap-3 px-4 py-3.5 rounded-2xl"
           style={{ background: '#fff5f5', border: '2px solid #fca5a5' }}>
@@ -310,92 +387,25 @@ function GPSMap({ trackedAnimals, selected, onSelect }) {
         </div>
       )}
 
-      {/* Controls */}
       <div className="flex items-center justify-between mb-3 gap-3">
         <div className="text-xs font-semibold">
           {escaped.length === 0
-            ? <span className="text-green-600 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> All {trackedAnimals.length} animals within farm boundary</span>
-            : <span className="text-red-600">{escaped.length} outside · {trackedAnimals.length - escaped.length} within boundary</span>
-          }
+            ? <span className="text-green-600 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" />All {trackedAnimals.length} animals within farm boundary</span>
+            : <span className="text-red-600">{escaped.length} outside · {trackedAnimals.length - escaped.length} within boundary</span>}
         </div>
         <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-          {[{ id: 'satellite', label: 'Satellite', Icon: Satellite }, { id: 'street', label: 'Street', Icon: Map }].map(t => (
+          {[{ id:'satellite', label:'Satellite', Icon:Satellite }, { id:'street', label:'Street', Icon:Map }].map(t => (
             <button key={t.id} onClick={() => setMapType(t.id)}
               className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
                 mapType === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-              <t.Icon size={12} /> {t.label}
+              <t.Icon size={12}/> {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Leaflet map */}
-      <div className="rounded-2xl overflow-hidden" style={{ height: 500, border: '1px solid #e2e8f0' }}>
-        <MapContainer center={FARM_CENTER} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl>
-          <TileLayer url={TILE_LAYERS[mapType].url} attribution={TILE_LAYERS[mapType].attribution} />
-          <MapFitter animals={trackedAnimals} />
-
-          {/* Geofence */}
-          <Circle center={FARM_CENTER} radius={FARM_RADIUS}
-            pathOptions={{
-              color: escaped.length > 0 ? '#ef4444' : '#22c55e',
-              fillColor: escaped.length > 0 ? '#ef4444' : '#22c55e',
-              fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
-            }} />
-
-          {/* Farm centre pin */}
-          <CircleMarker center={FARM_CENTER} radius={5}
-            pathOptions={{ color: '#15803d', fillColor: '#16a34a', fillOpacity: 1, weight: 2 }}>
-            <Tooltip permanent direction="top" offset={[0, -8]}>
-              <span style={{ fontSize: 11, fontWeight: 700 }}>🏠 Farm Centre</span>
-            </Tooltip>
-          </CircleMarker>
-
-          {/* Animal markers */}
-          {trackedAnimals.filter(a => a.tracker?.lat).map(a => {
-            const isOut  = outsideFarm(a.tracker);
-            const isSel  = selected?.id === a.id;
-            const mk     = SPECIES_MARKER[a.species] || { bg: '#64748b' };
-            const emoji  = SPECIES_META[a.species] || '🐾';
-            const size   = isSel ? 42 : 34;
-            const bg     = isOut ? '#ef4444' : mk.bg;
-            const shadow = isOut
-              ? ',0 0 0 6px rgba(239,68,68,.35)'
-              : isSel ? `,0 0 0 5px ${mk.bg}55` : '';
-
-            const icon = L.divIcon({
-              className: '',
-              html: `<div style="
-                width:${size}px;height:${size}px;border-radius:50%;
-                background:${bg};border:3px solid white;
-                display:flex;align-items:center;justify-content:center;
-                font-size:${Math.round(size * 0.45)}px;
-                box-shadow:0 3px 10px rgba(0,0,0,.3)${shadow};
-                cursor:pointer;transition:all .15s;
-              ">${emoji}</div>`,
-              iconSize: [size, size],
-              iconAnchor: [size / 2, size / 2],
-            });
-
-            const dist = haversine(FARM_CENTER[0], FARM_CENTER[1], a.tracker.lat, a.tracker.lng);
-
-            return (
-              <Marker key={`${a.id}-${isSel}-${isOut}`}
-                position={[a.tracker.lat, a.tracker.lng]}
-                icon={icon}
-                eventHandlers={{ click: () => onSelect(isSel ? null : a) }}>
-                <Tooltip direction="top" offset={[0, -size / 2 - 4]}>
-                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.4 }}>
-                    {a.name} · {a.tag}
-                    {isOut && <div style={{ color: '#ef4444', fontWeight: 800 }}>🚨 OUTSIDE FARM — {formatDist(dist)}</div>}
-                    {!isOut && <div style={{ color: '#16a34a', fontSize: 11 }}>✓ Within boundary · {formatDist(dist)}</div>}
-                  </div>
-                </Tooltip>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </div>
+      <div ref={containerRef} className="rounded-2xl overflow-hidden"
+        style={{ height: 500, border: '1px solid #e2e8f0' }} />
 
       <p className="text-xs text-slate-400 mt-2 text-center">
         Dashed circle = {FARM_RADIUS}m farm geofence · Click any marker to view animal details

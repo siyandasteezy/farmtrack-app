@@ -69,13 +69,22 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  const activateTrial = useCallback(() => {
+    setUser(prev => {
+      const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const updated = { ...prev, plan: 'trial', trialEnds };
+      localStorage.setItem('farmtrack_user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('farmtrack_user');
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, activatePlan }}>
+    <AuthContext.Provider value={{ user, login, register, logout, activatePlan, activateTrial }}>
       {children}
     </AuthContext.Provider>
   );

@@ -17,7 +17,7 @@ const FEATURES = [
 ];
 
 export default function Payment() {
-  const { user, activatePlan, logout } = useAuth();
+  const { user, activatePlan, activateTrial, logout } = useAuth();
   const nav = useNavigate();
   const [step, setStep] = useState('plan');
   const [loading, setLoading] = useState(false);
@@ -162,7 +162,7 @@ export default function Payment() {
                     <Btn size="lg" className="w-full" onClick={() => setStep('card')}>
                       <CreditCard size={17} /> Continue to payment
                     </Btn>
-                    <Btn variant="secondary" size="lg" className="w-full" onClick={() => nav('/dashboard')}>
+                    <Btn variant="secondary" size="lg" className="w-full" onClick={() => { activateTrial(); nav('/dashboard', { replace: true }); }}>
                       Start free trial first
                     </Btn>
                   </div>

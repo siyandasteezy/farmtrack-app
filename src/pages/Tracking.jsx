@@ -332,8 +332,8 @@ function BoundaryEditor({ current, onSave, onClose }) {
   }, [radius]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)' }}>
+    <div className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 9999, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)' }}>
       <div className="w-full max-w-2xl rounded-3xl overflow-hidden flex flex-col"
         style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,.2)', maxHeight: '90vh' }}>
 
@@ -756,6 +756,7 @@ export default function Tracking() {
   ];
 
   return (
+    <>
     <div className="flex flex-col gap-5 fade-in">
 
       {/* Header */}
@@ -843,13 +844,15 @@ export default function Tracking() {
         )}
       </div>
 
-      {showBoundaryEditor && (
-        <BoundaryEditor
-          current={farmBoundary}
-          onSave={setFarmBoundary}
-          onClose={() => setShowBoundaryEditor(false)}
-        />
-      )}
     </div>
+
+    {showBoundaryEditor && (
+      <BoundaryEditor
+        current={farmBoundary}
+        onSave={setFarmBoundary}
+        onClose={() => setShowBoundaryEditor(false)}
+      />
+    )}
+    </>
   );
 }

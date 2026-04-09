@@ -197,30 +197,43 @@ export default function FarmPlan() {
       {/* Farm Boundary */}
       <SectionCard icon="📍" title="Farm Boundary" subtitle="GPS geofence used in Animal Tracking to detect animals outside your farm">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Centre Latitude</div>
-              <div className="text-sm font-mono font-semibold text-slate-800">{farmBoundary.lat.toFixed(6)}</div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Centre Longitude</div>
-              <div className="text-sm font-mono font-semibold text-slate-800">{farmBoundary.lng.toFixed(6)}</div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Radius</div>
-              <div className="text-sm font-semibold text-slate-800">
-                {farmBoundary.radius >= 1000
-                  ? `${(farmBoundary.radius / 1000).toFixed(2)} km`
-                  : `${farmBoundary.radius} m`}
+          {farmBoundary.type === 'polygon' ? (
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Shape</div>
+                <div className="text-sm font-semibold text-slate-800">Custom Polygon</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Vertices</div>
+                <div className="text-sm font-semibold text-slate-800">{farmBoundary.points?.length ?? 0} points</div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Centre Latitude</div>
+                <div className="text-sm font-mono font-semibold text-slate-800">{(farmBoundary.lat ?? 0).toFixed(6)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Centre Longitude</div>
+                <div className="text-sm font-mono font-semibold text-slate-800">{(farmBoundary.lng ?? 0).toFixed(6)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Radius</div>
+                <div className="text-sm font-semibold text-slate-800">
+                  {(farmBoundary.radius ?? 0) >= 1000
+                    ? `${((farmBoundary.radius ?? 0) / 1000).toFixed(2)} km`
+                    : `${farmBoundary.radius ?? 0} m`}
+                </div>
+              </div>
+            </div>
+          )}
           <Btn onClick={() => setShowBoundaryEditor(true)}>
             <LocateFixed size={15} /> Edit Boundary
           </Btn>
         </div>
         <p className="text-xs text-slate-400 mt-4">
-          Animals with GPS trackers outside this radius will be flagged as escaped in Animal Tracking.
+          Animals with GPS trackers outside this boundary will be flagged as escaped in Animal Tracking.
         </p>
       </SectionCard>
 

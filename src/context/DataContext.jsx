@@ -36,7 +36,7 @@ export function DataProvider({ children }) {
   const [equipment,      setEquipment]      = useState(() => load('ft_equipment',      []));
   const [tickets,        setTickets]        = useState(() => load('ft_tickets',        []));
   const [devices,        setDevices]        = useState(() => load('ft_devices',        []));
-  const [farmBoundary,   setFarmBoundaryRaw] = useState(() => load('ft_farmBoundary', { lat: -33.7300, lng: 19.0100, radius: 450 }));
+  const [farmBoundary,   setFarmBoundaryRaw] = useState(() => load('ft_farmBoundary', { type: 'circle', lat: -33.7300, lng: 19.0100, radius: 450 }));
   const [farmProfile,    setFarmProfileRaw]  = useState(() => load('ft_farmProfile',  { name: '', address: '', country: '', area: '', areaUnit: 'ha' }));
   const [zones,          setZones]           = useState(() => load('ft_zones',         []));
 

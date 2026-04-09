@@ -62,9 +62,33 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function outsideFarm(trk, center, radius) {
-  if (!trk?.lat || !trk?.lng) return false;
-  return haversine(center[0], center[1], trk.lat, trk.lng) > radius;
+function pointInPolygon(lat, lng, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].lng, yi = points[i].lat;
+    const xj = points[j].lng, yj = points[j].lat;
+    if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
+}
+
+function boundaryCenter(b) {
+  if (b?.type === 'polygon' && b.points?.length > 0) {
+    const lat = b.points.reduce((s, p) => s + p.lat, 0) / b.points.length;
+    const lng = b.points.reduce((s, p) => s + p.lng, 0) / b.points.length;
+    return [lat, lng];
+  }
+  return [b?.lat ?? -33.73, b?.lng ?? 19.01];
+}
+
+function outsideFarm(trk, boundary) {
+  if (!trk?.lat || !trk?.lng || !boundary) return false;
+  if (boundary.type === 'polygon') {
+    if (!boundary.points || boundary.points.length < 3) return false;
+    return !pointInPolygon(trk.lat, trk.lng, boundary.points);
+  }
+  return haversine(boundary.lat ?? -33.73, boundary.lng ?? 19.01, trk.lat, trk.lng) > (boundary.radius ?? 450);
 }
 
 function formatDist(m) {
@@ -95,11 +119,11 @@ function BatteryBadge({ pct }) {
 
 /* ── Detail Panel ───────────────────────────────────────────────────── */
 
-function DetailPanel({ animal, healthRecords, distFromCenter, farmRadius, onClose }) {
+function DetailPanel({ animal, healthRecords, distFromCenter, isOutside, onClose }) {
   const st  = STATUS_STYLE[animal.status] || STATUS_STYLE.Healthy;
   const mk  = SPECIES_MARKER[animal.species] || SPECIES_MARKER.Cattle;
   const trk = animal.tracker;
-  const isOut = distFromCenter != null && distFromCenter > farmRadius;
+  const isOut = isOutside ?? false;
   const lastHealth = healthRecords
     .filter(h => h.animalTag === animal.tag || h.animalId === animal.id)
     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
@@ -248,7 +272,7 @@ function makeMarkerIcon(animal, isOut, isSel) {
   });
 }
 
-function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) {
+function GPSMap({ trackedAnimals, selected, onSelect, farmBoundary }) {
   const containerRef     = useRef(null);
   const mapRef           = useRef(null);
   const tileLayerRef     = useRef(null);
@@ -256,28 +280,39 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
   const geofenceRef      = useRef(null);
   const onSelectRef      = useRef(onSelect);
   const selectedRef      = useRef(selected);
-  const farmCenterRef    = useRef(farmCenter);
-  const farmRadiusRef    = useRef(farmRadius);
+  const farmBoundaryRef  = useRef(farmBoundary);
   const [mapType, setMapType] = useState('satellite');
+
+  const farmCenter = boundaryCenter(farmBoundary);
+  const farmRadius = farmBoundary?.type === 'polygon' ? null : (farmBoundary?.radius ?? 450);
 
   // Keep refs current without re-initialising the map
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
-  useEffect(() => { farmCenterRef.current = farmCenter; }, [farmCenter]);
-  useEffect(() => { farmRadiusRef.current = farmRadius; }, [farmRadius]);
+  useEffect(() => { farmBoundaryRef.current = farmBoundary; }, [farmBoundary]);
 
   // Live-update geofence when boundary changes
   useEffect(() => {
-    if (!geofenceRef.current) return;
-    const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, farmCenter, farmRadius));
-    geofenceRef.current.setLatLng(farmCenter);
-    geofenceRef.current.setRadius(farmRadius);
-    geofenceRef.current.setStyle({
-      color: escaped.length > 0 ? '#ef4444' : '#22c55e',
-      fillColor: escaped.length > 0 ? '#ef4444' : '#22c55e',
-    });
+    if (!mapRef.current) return;
+    const fb = farmBoundaryRef.current;
+    const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, fb));
+    const color = escaped.length > 0 ? '#ef4444' : '#22c55e';
+
+    if (geofenceRef.current) { geofenceRef.current.remove(); geofenceRef.current = null; }
+
+    if (fb?.type === 'polygon' && fb.points?.length >= 3) {
+      geofenceRef.current = L.polygon(fb.points.map(p => [p.lat, p.lng]), {
+        color, fillColor: color, fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+      }).addTo(mapRef.current);
+    } else {
+      const fc = boundaryCenter(fb);
+      const fr = fb?.radius ?? 450;
+      geofenceRef.current = L.circle(fc, {
+        radius: fr, color, fillColor: color, fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+      }).addTo(mapRef.current);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [farmCenter, farmRadius]);
+  }, [farmBoundary]);
 
   // Initialise map once
   useEffect(() => {
@@ -289,17 +324,22 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
       attribution: TILE_LAYERS.satellite.attribution,
     }).addTo(map);
 
-    const fc = farmCenterRef.current;
-    const fr = farmRadiusRef.current;
-    const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, fc, fr));
+    const fb = farmBoundaryRef.current;
+    const fc = boundaryCenter(fb);
+    const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, fb));
+    const color = escaped.length > 0 ? '#ef4444' : '#22c55e';
 
-    // Geofence
-    geofenceRef.current = L.circle(fc, {
-      radius: fr,
-      color: escaped.length > 0 ? '#ef4444' : '#22c55e',
-      fillColor: escaped.length > 0 ? '#ef4444' : '#22c55e',
-      fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
-    }).addTo(map);
+    // Geofence — circle or polygon
+    if (fb?.type === 'polygon' && fb.points?.length >= 3) {
+      geofenceRef.current = L.polygon(fb.points.map(p => [p.lat, p.lng]), {
+        color, fillColor: color, fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+      }).addTo(map);
+    } else {
+      const fr = fb?.radius ?? 450;
+      geofenceRef.current = L.circle(fc, {
+        radius: fr, color, fillColor: color, fillOpacity: 0.06, dashArray: '10 6', weight: 2.5,
+      }).addTo(map);
+    }
 
     // Farm centre
     L.circleMarker(fc, {
@@ -309,7 +349,7 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
     // Animal markers
     const pts = [fc];
     trackedAnimals.filter(a => a.tracker?.lat).forEach(animal => {
-      const isOut = outsideFarm(animal.tracker, fc, fr);
+      const isOut = outsideFarm(animal.tracker, fb);
       const dist  = haversine(fc[0], fc[1], animal.tracker.lat, animal.tracker.lng);
       const tooltipHtml = `<div style="font-weight:700;font-size:12px;line-height:1.5">
         ${animal.name} · ${animal.tag}
@@ -347,13 +387,13 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
   // Update marker icons when selection changes
   useEffect(() => {
     Object.values(markersRef.current).forEach(({ marker, animal }) => {
-      const isOut = outsideFarm(animal.tracker, farmCenterRef.current, farmRadiusRef.current);
+      const isOut = outsideFarm(animal.tracker, farmBoundaryRef.current);
       const isSel = selected?.id === animal.id;
       marker.setIcon(makeMarkerIcon(animal, isOut, isSel));
     });
   }, [selected]);
 
-  const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, farmCenter, farmRadius));
+  const escaped = trackedAnimals.filter(a => outsideFarm(a.tracker, farmBoundary));
 
   return (
     <div>
@@ -396,7 +436,9 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
         style={{ height: 500, border: '1px solid #e2e8f0' }} />
 
       <p className="text-xs text-slate-400 mt-2 text-center">
-        Dashed circle = {farmRadius >= 1000 ? `${(farmRadius / 1000).toFixed(2)} km` : `${farmRadius} m`} farm geofence · Click any marker to view animal details
+        {farmBoundary?.type === 'polygon'
+          ? `Polygon geofence (${farmBoundary.points?.length ?? 0} vertices)`
+          : farmRadius >= 1000 ? `${(farmRadius / 1000).toFixed(2)} km` : `${farmRadius} m`} farm geofence · Click any marker to view animal details
       </p>
     </div>
   );
@@ -406,7 +448,7 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
 
 /* ── Tracked List ───────────────────────────────────────────────────── */
 
-function TrackedList({ allAnimals, onSelect, farmCenter, farmRadius }) {
+function TrackedList({ allAnimals, onSelect, farmBoundary, farmCenter }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -429,7 +471,7 @@ function TrackedList({ allAnimals, onSelect, farmCenter, farmRadius }) {
             {[...allAnimals.filter(a => a.tracker), ...allAnimals.filter(a => !a.tracker)].map(a => {
               const st  = STATUS_STYLE[a.status] || STATUS_STYLE.Healthy;
               const trk = a.tracker;
-              const isOut = outsideFarm(trk, farmCenter, farmRadius);
+              const isOut = outsideFarm(trk, farmBoundary);
               const dist = trk?.lat ? haversine(farmCenter[0], farmCenter[1], trk.lat, trk.lng) : null;
               return (
                 <tr key={a.id}
@@ -483,13 +525,12 @@ export default function Tracking() {
   const [view, setView]     = useState('gps');
   const [selected, setSelected] = useState(null);
 
-  const farmCenter = useMemo(() => [farmBoundary.lat, farmBoundary.lng], [farmBoundary.lat, farmBoundary.lng]);
-  const farmRadius = farmBoundary.radius;
+  const farmCenter = useMemo(() => boundaryCenter(farmBoundary), [farmBoundary]);
 
   const trackedAnimals = useMemo(() => livestock.filter(a => a.tracker), [livestock]);
   const escapedAnimals = useMemo(
-    () => trackedAnimals.filter(a => outsideFarm(a.tracker, farmCenter, farmRadius)),
-    [trackedAnimals, farmCenter, farmRadius]
+    () => trackedAnimals.filter(a => outsideFarm(a.tracker, farmBoundary)),
+    [trackedAnimals, farmBoundary]
   );
   const lowBattery = useMemo(() => trackedAnimals.filter(a => a.tracker.battery < 20), [trackedAnimals]);
 
@@ -577,8 +618,8 @@ export default function Tracking() {
       {/* Content */}
       <div className="flex gap-4 items-start">
         <div className="flex-1 min-w-0">
-          {view === 'gps'  && <GPSMap trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
-          {view === 'list' && <TrackedList allAnimals={livestock} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
+          {view === 'gps'  && <GPSMap trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} farmBoundary={farmBoundary} />}
+          {view === 'list' && <TrackedList allAnimals={livestock} onSelect={handleSelect} farmBoundary={farmBoundary} farmCenter={farmCenter} />}
           {view !== 'list' && <p className="text-xs text-slate-400 mt-2 text-center hidden md:block">Click any animal marker to view details</p>}
         </div>
 
@@ -586,7 +627,7 @@ export default function Tracking() {
         {selected && view !== 'list' && (
           <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-xl flex flex-col"
             style={{ border: '1px solid #e2e8f0', maxHeight: 'calc(100vh - 180px)', position: 'sticky', top: 16 }}>
-            <DetailPanel animal={selected} healthRecords={health} distFromCenter={selectedDist} farmRadius={farmRadius} onClose={() => setSelected(null)} />
+            <DetailPanel animal={selected} healthRecords={health} distFromCenter={selectedDist} isOutside={outsideFarm(selected?.tracker, farmBoundary)} onClose={() => setSelected(null)} />
           </div>
         )}
       </div>

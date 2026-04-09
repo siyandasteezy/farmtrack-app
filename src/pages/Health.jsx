@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/Badge';
@@ -80,7 +80,7 @@ function HealthForm({ health, livestock, onSave, onClose }) {
 }
 
 export default function Health() {
-  const { health, livestock, addHealth, removeHealth } = useData();
+  const { health, livestock, addHealth, updateHealth, removeHealth } = useData();
   const [tab, setTab] = useState('all');
   const [modal, setModal] = useState(null);
 
@@ -170,10 +170,16 @@ export default function Health() {
                     <td className="px-3 py-3.5 font-bold text-slate-800">${h.cost}</td>
                     <td className="px-3 py-3.5"><StatusBadge status={h.status} /></td>
                     <td className="px-3 py-3.5">
-                      <button onClick={() => removeHealth(h.id)}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setModal({ type: 'edit', record: h })}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => removeHealth(h.id)}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -185,6 +191,9 @@ export default function Health() {
 
       {modal?.type === 'add' && (
         <HealthForm livestock={livestock} onSave={addHealth} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'edit' && (
+        <HealthForm health={modal.record} livestock={livestock} onSave={updateHealth} onClose={() => setModal(null)} />
       )}
     </div>
   );

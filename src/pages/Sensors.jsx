@@ -811,7 +811,7 @@ function ConfigViewer({device:d, sensor, onClose}){
 /* ── Page ───────────────────────────────────────────────────────────── */
 
 export default function Sensors(){
-  const { sensors, addSensor, removeSensor, addManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice } = useData();
+  const { sensors, addSensor, removeSensor, addManualReading, removeManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice } = useData();
 
   const [tab,setTab]               = useState('dashboard');
   const [cat,setCat]               = useState('All');
@@ -977,7 +977,7 @@ export default function Sensors(){
             ):(
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr>{['Sensor','Location','Value','Reason','Notes','Logged At'].map(h=><th key={h} className="pb-2.5 pr-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>)}</tr></thead>
+                  <thead><tr>{['Sensor','Location','Value','Reason','Notes','Logged At',''].map(h=><th key={h} className="pb-2.5 pr-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>)}</tr></thead>
                   <tbody className="divide-y divide-slate-50">
                     {manualReadings.map(r=>(
                       <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
@@ -986,7 +986,13 @@ export default function Sensors(){
                         <td className="py-2.5 pr-4 font-bold whitespace-nowrap" style={{color:'#7c3aed'}}>{r.value}{r.unit}</td>
                         <td className="py-2.5 pr-4 text-slate-600 text-xs whitespace-nowrap">{r.reason}</td>
                         <td className="py-2.5 pr-4 text-slate-400 text-xs max-w-[160px] truncate">{r.notes||'—'}</td>
-                        <td className="py-2.5 text-slate-400 text-xs whitespace-nowrap">{formatLoggedAt(r.loggedAt)}</td>
+                        <td className="py-2.5 pr-4 text-slate-400 text-xs whitespace-nowrap">{formatLoggedAt(r.loggedAt)}</td>
+                        <td className="py-2.5">
+                          <button onClick={()=>removeManualReading(r.id)}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <Trash2 size={13}/>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

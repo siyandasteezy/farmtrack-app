@@ -1,20 +1,6 @@
-export const INITIAL_SENSORS = [
-  { id:1,  name:'Air Temperature', value:24.3, unit:'°C',     location:'Barn 1',       status:'normal', min:15, max:30,  icon:'🌡️', category:'Environment' },
-  { id:2,  name:'Humidity',        value:68,   unit:'%',      location:'Barn 1',       status:'normal', min:40, max:80,  icon:'💧', category:'Environment' },
-  { id:3,  name:'Air Temperature', value:27.8, unit:'°C',     location:'Hen House 1',  status:'warn',   min:15, max:27,  icon:'🌡️', category:'Environment' },
-  { id:4,  name:'Humidity',        value:75,   unit:'%',      location:'Hen House 1',  status:'normal', min:40, max:80,  icon:'💧', category:'Environment' },
-  { id:5,  name:'CO₂ Level',       value:1250, unit:'ppm',    location:'Pig Pen 1',    status:'warn',   min:0,  max:1500,icon:'🌬️', category:'Air Quality' },
-  { id:6,  name:'Ammonia',         value:12,   unit:'ppm',    location:'Pig Pen 1',    status:'normal', min:0,  max:25,  icon:'⚗️', category:'Air Quality' },
-  { id:7,  name:'Water Level',     value:82,   unit:'%',      location:'Tank A',       status:'normal', min:20, max:100, icon:'🚰', category:'Water' },
-  { id:8,  name:'Water Level',     value:18,   unit:'%',      location:'Tank B',       status:'alert',  min:20, max:100, icon:'🚰', category:'Water' },
-  { id:9,  name:'Soil Moisture',   value:42,   unit:'%',      location:'Field B',      status:'normal', min:30, max:70,  icon:'🌱', category:'Field' },
-  { id:10, name:'Soil Moisture',   value:28,   unit:'%',      location:'Field C',      status:'warn',   min:30, max:70,  icon:'🌱', category:'Field' },
-  { id:11, name:'Feed Level',      value:76,   unit:'%',      location:'Silo 1',       status:'normal', min:10, max:100, icon:'🌾', category:'Feed' },
-  { id:12, name:'Feed Level',      value:8,    unit:'%',      location:'Silo 2',       status:'alert',  min:10, max:100, icon:'🌾', category:'Feed' },
-  { id:13, name:'Body Temp (avg)', value:38.6, unit:'°C',     location:'Cattle Herd',  status:'normal', min:37.5,max:39.5,icon:'🐄',category:'Animal Health' },
-  { id:14, name:'Milk Yield',      value:24.2, unit:'L/day',  location:'Dairy Unit',   status:'normal', min:18, max:35,  icon:'🥛', category:'Production' },
-  { id:15, name:'Wind Speed',      value:18,   unit:'km/h',   location:'Farm HQ',      status:'normal', min:0,  max:50,  icon:'💨', category:'Weather' },
-  { id:16, name:'Rainfall',        value:3.2,  unit:'mm',     location:'Farm HQ',      status:'normal', min:0,  max:50,  icon:'🌧️', category:'Weather' },
-  { id:17, name:'Light Intensity', value:420,  unit:'lux',    location:'Greenhouse',   status:'normal', min:200,max:800, icon:'☀️', category:'Environment' },
-  { id:18, name:'GPS Fence',       value:100,  unit:'%',      location:'Perimeter',    status:'normal', min:100,max:100, icon:'📍', category:'Security' },
+export const SENSOR_CATEGORIES = [
+  'Environment', 'Air Quality', 'Water', 'Field', 'Feed',
+  'Animal Health', 'Production', 'Weather', 'Security', 'Other',
 ];
+
+export const SENSOR_ICONS = ['🌡️','💧','🌬️','⚗️','🚰','🌱','🌾','🐄','🥛','🌤️','🔒','⚡','📊','🔊','Other'];

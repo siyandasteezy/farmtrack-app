@@ -118,6 +118,13 @@ export default function FarmPlan() {
 
   const handleSaveProfile = () => {
     setFarmProfile(profileForm);
+    // If profile lat/lng are set and boundary is still at the factory default, sync the boundary centre
+    const lat = parseFloat(profileForm.lat);
+    const lng = parseFloat(profileForm.lng);
+    const isDefaultCenter = farmBoundary.lat === -33.7300 && farmBoundary.lng === 19.0100;
+    if (!isNaN(lat) && !isNaN(lng) && farmBoundary.type !== 'polygon' && isDefaultCenter) {
+      setFarmBoundary({ ...farmBoundary, lat, lng });
+    }
     setEditingProfile(false);
   };
 
@@ -145,14 +152,16 @@ export default function FarmPlan() {
           <div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               {[
-                { label: 'Farm Name', value: displayName },
-                { label: 'Address', value: farmProfile.address || '—' },
-                { label: 'Country', value: farmProfile.country || '—' },
+                { label: 'Farm Name',  value: displayName },
+                { label: 'Address',    value: farmProfile.address || '—' },
+                { label: 'Country',    value: farmProfile.country || '—' },
                 { label: 'Total Area', value: farmProfile.area ? `${farmProfile.area} ${farmProfile.areaUnit}` : '—' },
-              ].map(({ label, value }) => (
+                { label: 'Latitude',   value: farmProfile.lat  || '—', mono: true },
+                { label: 'Longitude',  value: farmProfile.lng  || '—', mono: true },
+              ].map(({ label, value, mono }) => (
                 <div key={label}>
                   <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{label}</div>
-                  <div className="text-sm font-semibold text-slate-800">{value}</div>
+                  <div className={`text-sm font-semibold text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</div>
                 </div>
               ))}
             </div>
@@ -184,6 +193,16 @@ export default function FarmPlan() {
                 <Select value={profileForm.areaUnit} onChange={setP('areaUnit')}>
                   {AREA_UNITS.map(u => <option key={u}>{u}</option>)}
                 </Select>
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Latitude" hint="Decimal degrees — e.g. -33.7300">
+                <Input type="number" step="0.000001" placeholder="e.g. -33.7300"
+                  value={profileForm.lat} onChange={setP('lat')} />
+              </FormField>
+              <FormField label="Longitude" hint="Decimal degrees — e.g. 19.0100">
+                <Input type="number" step="0.000001" placeholder="e.g. 19.0100"
+                  value={profileForm.lng} onChange={setP('lng')} />
               </FormField>
             </div>
             <div className="flex gap-2">
@@ -311,6 +330,11 @@ export default function FarmPlan() {
     {showBoundaryEditor && (
       <BoundaryEditor
         current={farmBoundary}
+        defaultCenter={
+          parseFloat(farmProfile.lat) && parseFloat(farmProfile.lng)
+            ? { lat: parseFloat(farmProfile.lat), lng: parseFloat(farmProfile.lng) }
+            : null
+        }
         onSave={setFarmBoundary}
         onClose={() => setShowBoundaryEditor(false)}
       />

@@ -13,13 +13,17 @@ function polygonCentroid(points) {
   return { lat, lng };
 }
 
-export function BoundaryEditor({ current, onSave, onClose }) {
+export function BoundaryEditor({ current, defaultCenter, onSave, onClose }) {
   const initMode = current?.type === 'polygon' ? 'polygon' : 'circle';
   const [mode, setMode]     = useState(initMode);
 
+  // Resolve starting centre: existing boundary → farm profile → hardcoded fallback
+  const startLat = current?.lat ?? defaultCenter?.lat ?? -33.7300;
+  const startLng = current?.lng ?? defaultCenter?.lng ?? 19.0100;
+
   // Circle state
-  const [lat,    setLat]    = useState(current?.lat    ?? -33.7300);
-  const [lng,    setLng]    = useState(current?.lng    ?? 19.0100);
+  const [lat,    setLat]    = useState(startLat);
+  const [lng,    setLng]    = useState(startLng);
   const [radius, setRadius] = useState(current?.radius ?? 450);
 
   // Polygon state

@@ -42,12 +42,6 @@ function HealthForm({ health, livestock, onSave, onClose }) {
     <Modal open title={health ? 'Edit Record' : 'Add Health Record'} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save</Btn></>}>
       <div className="flex flex-col gap-4">
-        {error && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
-            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
-            ⚠ {error}
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Date *">
             <Input type="date" value={form.date} onChange={set('date')} />
@@ -82,6 +76,12 @@ function HealthForm({ health, livestock, onSave, onClose }) {
         <FormField label="Notes">
           <Textarea rows={2} placeholder="Details…" value={form.notes} onChange={set('notes')} />
         </FormField>
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
       </div>
     </Modal>
   );

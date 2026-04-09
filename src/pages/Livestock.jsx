@@ -42,12 +42,6 @@ function AnimalForm({ animal, onSave, onClose }) {
       }
     >
       <div className="flex flex-col gap-4">
-        {error && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
-            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
-            ⚠ {error}
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Tag / ID *">
             <Input placeholder="e.g. CT-010" value={form.tag} onChange={set('tag')} />
@@ -95,6 +89,12 @@ function AnimalForm({ animal, onSave, onClose }) {
         <FormField label="Notes">
           <Textarea rows={2} placeholder="Optional notes…" value={form.notes} onChange={set('notes')} />
         </FormField>
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
       </div>
     </Modal>
   );

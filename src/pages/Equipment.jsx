@@ -13,7 +13,18 @@ import { FormField, Input, Select, Textarea, Btn } from '../components/FormField
 import { StatCard } from '../components/StatCard';
 import clsx from 'clsx';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+function ErrorBanner({ children }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+      style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+      ⚠ {children}
+    </div>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_THEME = {
   Active:      { bg: '#dcfce7', text: '#15803d', dot: '#22c55e' },
@@ -65,10 +76,11 @@ function EquipmentForm({ item, onSave, onClose }) {
     lastService:  item?.lastService  || '',
     notes:        item?.notes        || '',
   });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const [error, setError] = useState('');
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
 
   const handleSave = () => {
-    if (!form.name.trim()) return alert('Name is required');
+    if (!form.name.trim()) { setError('Equipment name is required'); return; }
     onSave({ ...item, ...form });
     onClose();
   };
@@ -111,6 +123,7 @@ function EquipmentForm({ item, onSave, onClose }) {
         <FormField label="Notes">
           <Textarea rows={2} placeholder="Optional notes…" value={form.notes} onChange={set('notes')} />
         </FormField>
+        {error && <ErrorBanner>{error}</ErrorBanner>}
       </div>
     </Modal>
   );
@@ -129,7 +142,8 @@ function TicketForm({ ticket, equipment, onSave, onClose }) {
     subCategory: ticket?.subCategory || '',
     assignedTo:  ticket?.assignedTo  || '',
   });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const [error, setError] = useState('');
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
 
   // Build subcategory list — Equipment category uses actual equipment names
   const subOptions = useMemo(() => {
@@ -140,13 +154,13 @@ function TicketForm({ ticket, equipment, onSave, onClose }) {
   }, [form.category, equipment]);
 
   const handleCategoryChange = (e) => {
+    setError('');
     setForm(p => ({ ...p, category: e.target.value, subCategory: '' }));
   };
 
   const handleSave = () => {
-    if (!form.title.trim())      return alert('Title is required');
-    if (!form.category)          return alert('Category is required');
-    if (!form.subCategory)       return alert('Sub-category is required');
+    if (!form.title.trim())  { setError('Title is required'); return; }
+    if (!form.subCategory)   { setError('Sub-category is required'); return; }
     onSave({ ...ticket, ...form });
     onClose();
   };
@@ -207,6 +221,7 @@ function TicketForm({ ticket, equipment, onSave, onClose }) {
             <span className="font-bold text-slate-700">{form.subCategory}</span>
           </div>
         )}
+        {error && <ErrorBanner>{error}</ErrorBanner>}
       </div>
     </Modal>
   );

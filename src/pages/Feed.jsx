@@ -61,12 +61,6 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
     <Modal open title={feed ? 'Edit Feed Type' : 'Add Feed Type'} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save</Btn></>}>
       <div className="flex flex-col gap-4">
-        {error && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
-            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
-            ⚠ {error}
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Species *">
             <Select value={form.species} onChange={set('species')}>
@@ -93,6 +87,12 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
         <FormField label="Current stock">
           <Input type="number" step="0.1" min="0" placeholder="0" value={form.stock} onChange={set('stock')} />
         </FormField>
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -111,18 +111,18 @@ function RestockModal({ feedItem, onSave, onClose }) {
     <Modal open title={`Restock — ${feedItem.species} ${feedItem.type}`} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Log order</Btn></>}>
       <div className="flex flex-col gap-4">
+        <p className="text-sm text-slate-500">
+          Current stock: <strong className="text-slate-700">{feedItem.stock} {feedItem.unit}</strong>
+        </p>
+        <FormField label={`Quantity received (${feedItem.unit})`}>
+          <Input type="number" step="0.1" min="0" placeholder="0" value={qty} onChange={e => { setError(''); setQty(e.target.value); }} autoFocus />
+        </FormField>
         {error && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
             style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
             ⚠ {error}
           </div>
         )}
-        <p className="text-sm text-slate-500">
-          Current stock: <strong className="text-slate-700">{feedItem.stock} {feedItem.unit}</strong>
-        </p>
-        <FormField label={`Quantity received (${feedItem.unit})`}>
-          <Input type="number" step="0.1" min="0" placeholder="0" value={qty} onChange={e => setQty(e.target.value)} autoFocus />
-        </FormField>
       </div>
     </Modal>
   );

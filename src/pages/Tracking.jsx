@@ -172,7 +172,7 @@ function DetailPanel({ animal, healthRecords, distFromCenter, isOutside, onClose
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div><div className="text-slate-500 mb-0.5">Device</div><div className="font-mono font-bold text-white">{trk.deviceId}</div></div>
+              <div><div className="text-slate-500 mb-0.5">Device</div><div className="font-mono font-bold text-white">{trk.deviceId || 'Manual GPS'}</div></div>
               <div><div className="text-slate-500 mb-0.5">Battery</div><BatteryBadge pct={trk.battery} /></div>
               <div><div className="text-slate-500 mb-0.5">Last seen</div><div className="font-semibold text-slate-300 flex items-center gap-1.5"><Clock size={11} className="text-slate-500" />{relativeTime(trk.lastSeen)}</div></div>
               {trk.lat && trk.lng && (
@@ -503,7 +503,7 @@ function TrackedList({ allAnimals, onSelect, farmBoundary, farmCenter }) {
                         {dist != null ? formatDist(dist) : '—'}
                         {isOut && ' ⚠'}
                       </td>
-                      <td className="py-3 text-[11px] font-mono text-slate-400">{trk.deviceId}</td>
+                      <td className="py-3 text-[11px] font-mono text-slate-400">{trk.deviceId || 'Manual GPS'}</td>
                     </>
                   ) : (
                     <td colSpan={4} className="py-3 text-xs text-slate-300 italic">No tracker</td>

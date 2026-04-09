@@ -158,10 +158,14 @@ function TrackerModal({ animal, onSave, onClose }) {
 
   const handleSave = () => {
     const deviceId = mode === 'registered' ? selDevice : customId.trim();
-    if (!deviceId) { setError('Device ID is required'); return; }
+    const hasCoords = lat !== '' && lng !== '';
+    if (!deviceId && !hasCoords) {
+      setError('Enter a device ID, GPS coordinates, or both');
+      return;
+    }
     const batt = Math.min(100, Math.max(0, parseInt(battery) || 100));
     const tracker = {
-      deviceId,
+      deviceId: deviceId || null,
       battery: batt,
       lastSeen: new Date().toISOString(),
       lat: lat !== '' && lat !== null ? parseFloat(lat) : null,
@@ -426,7 +430,7 @@ export default function Livestock() {
                       {a.tracker ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg"
                           style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
-                          <Radio size={10} /> {a.tracker.deviceId}
+                          <Radio size={10} /> {a.tracker.deviceId || 'Manual GPS'}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-300">—</span>

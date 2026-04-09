@@ -41,15 +41,16 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
     unit: feed.unit,
     costPerKg: String(feed.costPerKg),
   } : BLANK_FORM);
+  const [error, setError] = useState('');
 
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
 
   const handleSave = () => {
-    if (!form.type.trim()) return alert('Feed type name is required');
+    if (!form.type.trim()) { setError('Feed type name is required'); return; }
     const dailyPerHead = parseFloat(form.dailyPerHead);
     const stock = parseFloat(form.stock) || 0;
     const costPerKg = parseFloat(form.costPerKg) || 0;
-    if (!dailyPerHead || dailyPerHead <= 0) return alert('Daily per head must be greater than 0');
+    if (!dailyPerHead || dailyPerHead <= 0) { setError('Daily per head must be greater than 0'); return; }
     const count = Math.max(1, livestock.filter(a => a.species === form.species).length);
     const daysLeft = dailyPerHead > 0 ? Math.round(stock / (dailyPerHead * count)) : 0;
     onSave({ ...feed, species: form.species, type: form.type.trim(), dailyPerHead, stock, unit: form.unit, costPerKg, daysLeft });
@@ -60,6 +61,12 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
     <Modal open title={feed ? 'Edit Feed Type' : 'Add Feed Type'} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save</Btn></>}>
       <div className="flex flex-col gap-4">
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Species *">
             <Select value={form.species} onChange={set('species')}>
@@ -93,9 +100,10 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
 
 function RestockModal({ feedItem, onSave, onClose }) {
   const [qty, setQty] = useState('');
+  const [error, setError] = useState('');
   const handleSave = () => {
     const q = parseFloat(qty);
-    if (!q || q <= 0) return alert('Enter a valid quantity');
+    if (!q || q <= 0) { setError('Enter a valid quantity greater than 0'); return; }
     onSave(feedItem.id, q);
     onClose();
   };
@@ -103,6 +111,12 @@ function RestockModal({ feedItem, onSave, onClose }) {
     <Modal open title={`Restock — ${feedItem.species} ${feedItem.type}`} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Log order</Btn></>}>
       <div className="flex flex-col gap-4">
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
         <p className="text-sm text-slate-500">
           Current stock: <strong className="text-slate-700">{feedItem.stock} {feedItem.unit}</strong>
         </p>

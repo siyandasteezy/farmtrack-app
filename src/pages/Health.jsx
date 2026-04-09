@@ -27,10 +27,12 @@ function HealthForm({ health, livestock, onSave, onClose }) {
     cost: health?.cost || '',
     notes: health?.notes || '',
   });
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const [error, setError] = useState('');
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
 
   const handleSave = () => {
-    if (!form.animalTag || !form.date) return alert('Animal and date are required');
+    if (!form.animalTag) { setError('Please select an animal'); return; }
+    if (!form.date) { setError('Date is required'); return; }
     const a = livestock.find(x => x.tag === form.animalTag);
     onSave({ ...health, ...form, animalName: a?.name || form.animalTag, cost: parseFloat(form.cost) || 0 });
     onClose();
@@ -40,6 +42,12 @@ function HealthForm({ health, livestock, onSave, onClose }) {
     <Modal open title={health ? 'Edit Record' : 'Add Health Record'} onClose={onClose}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save</Btn></>}>
       <div className="flex flex-col gap-4">
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Date *">
             <Input type="date" value={form.date} onChange={set('date')} />

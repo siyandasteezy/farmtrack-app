@@ -18,12 +18,13 @@ function AnimalForm({ animal, onSave, onClose }) {
     weight: animal?.weight || '', location: animal?.location || '',
     status: animal?.status || 'Healthy', notes: animal?.notes || '',
   });
+  const [error, setError] = useState('');
 
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
   const breeds = SPECIES_META[form.species]?.breeds || [];
 
   const handleSave = () => {
-    if (!form.tag.trim()) return alert('Tag is required');
+    if (!form.tag.trim()) { setError('Tag / ID is required'); return; }
     const age = form.dob ? Math.floor((new Date() - new Date(form.dob)) / 31557600000) : 0;
     onSave({ ...animal, ...form, age, weight: parseFloat(form.weight) || 0 });
     onClose();
@@ -41,6 +42,12 @@ function AnimalForm({ animal, onSave, onClose }) {
       }
     >
       <div className="flex flex-col gap-4">
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Tag / ID *">
             <Input placeholder="e.g. CT-010" value={form.tag} onChange={set('tag')} />

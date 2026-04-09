@@ -16,6 +16,7 @@ import Reports     from './pages/Reports';
 import Billing     from './pages/Billing';
 import Equipment   from './pages/Equipment';
 import Tracking    from './pages/Tracking';
+import FarmPlan    from './pages/FarmPlan';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="/reports"     element={<Reports />} />
         <Route path="/equipment"   element={<Equipment />} />
         <Route path="/tracking"    element={<Tracking />} />
+        <Route path="/farm-plan"   element={<FarmPlan />} />
         <Route path="/billing"     element={<Billing />} />
       </Route>
 

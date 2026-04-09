@@ -811,7 +811,7 @@ function ConfigViewer({device:d, sensor, onClose}){
 /* ── Page ───────────────────────────────────────────────────────────── */
 
 export default function Sensors(){
-  const { sensors, addSensor, removeSensor, addManualReading, removeManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice } = useData();
+  const { sensors, addSensor, removeSensor, addManualReading, removeManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice, zones } = useData();
 
   const [tab,setTab]               = useState('dashboard');
   const [cat,setCat]               = useState('All');
@@ -822,7 +822,7 @@ export default function Sensors(){
   const [configDevice,setConfigDevice] = useState(null);
 
   const categories   = useMemo(()=>['All',...new Set(sensors.map(s=>s.category))],[sensors]);
-  const existingLocs = useMemo(()=>[...new Set(sensors.map(s=>s.location))],[sensors]);
+  const existingLocs = useMemo(()=>[...new Set([...zones.map(z=>z.name),...sensors.map(s=>s.location)].filter(Boolean))],[sensors,zones]);
   const shown        = cat==='All'?sensors:sensors.filter(s=>s.category===cat);
   const alerts       = sensors.filter(s=>s.status!=='normal');
   const normalCount  = sensors.filter(s=>s.status==='normal').length;

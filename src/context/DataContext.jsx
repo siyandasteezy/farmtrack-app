@@ -37,8 +37,16 @@ export function DataProvider({ children }) {
   const [tickets,        setTickets]        = useState(() => load('ft_tickets',        []));
   const [devices,        setDevices]        = useState(() => load('ft_devices',        []));
   const [farmBoundary,   setFarmBoundaryRaw] = useState(() => load('ft_farmBoundary', { lat: -33.7300, lng: 19.0100, radius: 450 }));
+  const [farmProfile,    setFarmProfileRaw]  = useState(() => load('ft_farmProfile',  { name: '', address: '', country: '', area: '', areaUnit: 'ha' }));
+  const [zones,          setZones]           = useState(() => load('ft_zones',         []));
 
   const setFarmBoundary = (v) => { save('ft_farmBoundary', v); setFarmBoundaryRaw(v); };
+  const setFarmProfile  = (v) => { save('ft_farmProfile',  v); setFarmProfileRaw(v); };
+
+  /* ── Zones ── */
+  const addZone    = (z)  => setZones(p => save('ft_zones', [...p, { ...z, id: `zone-${newId()}` }]));
+  const updateZone = (z)  => setZones(p => save('ft_zones', p.map(x => x.id === z.id ? z : x)));
+  const removeZone = (id) => setZones(p => save('ft_zones', p.filter(x => x.id !== id)));
 
   /* ── Livestock ── */
   const addAnimal    = (a)  => setLivestock(p => save('ft_livestock', [...p, { ...a, id: newId() }]));
@@ -148,6 +156,8 @@ export function DataProvider({ children }) {
       devices,       addDevice,    updateDevice,  removeDevice,
       tickets,       addTicket,    updateTicket,  removeTicket,
       farmBoundary,  setFarmBoundary,
+      farmProfile,   setFarmProfile,
+      zones,         addZone, updateZone, removeZone,
     }}>
       {children}
     </DataContext.Provider>

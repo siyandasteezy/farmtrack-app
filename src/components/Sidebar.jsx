@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Beef, HeartPulse, Activity,
-  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin,
+  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin, Map,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const NAV = [
+  { to: '/farm-plan',   label: 'Farm Plan',        Icon: Map },
   { to: '/dashboard',   label: 'Dashboard',       Icon: LayoutDashboard },
   { to: '/livestock',   label: 'Livestock',        Icon: Beef },
   { to: '/health',      label: 'Health & Vet',     Icon: HeartPulse },

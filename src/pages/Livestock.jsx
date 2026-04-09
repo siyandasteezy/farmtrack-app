@@ -25,6 +25,7 @@ function generateTag(species, existingAnimals) {
 }
 
 function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
+  const { zones } = useData();
   const isNew = !animal;
   const [form, setForm] = useState(() => ({
     tag: animal?.tag || (isNew ? generateTag('Cattle', existingAnimals) : ''),
@@ -110,8 +111,11 @@ function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
           <FormField label="Weight (kg)">
             <Input type="number" placeholder="kg" value={form.weight} onChange={set('weight')} />
           </FormField>
-          <FormField label="Location">
-            <Input placeholder="e.g. Paddock A" value={form.location} onChange={set('location')} />
+          <FormField label="Location" hint={zones.length === 0 ? 'Add zones in Farm Plan to see suggestions' : undefined}>
+            <Input placeholder="e.g. Paddock A" value={form.location} onChange={set('location')} list="zone-options-animal" />
+            <datalist id="zone-options-animal">
+              {zones.map(z => <option key={z.id} value={z.name} />)}
+            </datalist>
           </FormField>
         </div>
         <FormField label="Status">

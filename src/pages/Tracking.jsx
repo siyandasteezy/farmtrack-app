@@ -4,15 +4,11 @@ import 'leaflet/dist/leaflet.css';
 import { useData } from '../context/DataContext';
 import {
   MapPin, List, Battery, BatteryLow, Wifi, Clock, X,
-  AlertTriangle, Satellite, Map, Navigation, Settings, LocateFixed,
+  AlertTriangle, Satellite, Map, Navigation,
 } from 'lucide-react';
 import clsx from 'clsx';
 
 /* ── Farm Config ────────────────────────────────────────────────────── */
-
-// Default farm centroid — overridden by farmBoundary from DataContext
-const DEFAULT_CENTER = [-33.7300, 19.0100];
-const DEFAULT_RADIUS = 450;
 
 const TILE_LAYERS = {
   satellite: {
@@ -23,26 +19,6 @@ const TILE_LAYERS = {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
-};
-
-/* ── Farm Zone Layout (SVG schematic) ──────────────────────────────── */
-
-const FARM_ZONES = {
-  'Paddock A':   { x:10,  y:10,  w:200, h:200, color:'#dcfce7', border:'#4ade80', label:'Paddock A'   },
-  'Barn 1':      { x:220, y:10,  w:160, h:90,  color:'#fefce8', border:'#fde047', label:'Barn 1'      },
-  'Stable 1':    { x:220, y:110, w:160, h:100, color:'#fdf4ff', border:'#d8b4fe', label:'Stable 1'    },
-  'Field B':     { x:390, y:10,  w:160, h:200, color:'#f0fdf4', border:'#86efac', label:'Field B'     },
-  'Hen House 1': { x:560, y:10,  w:150, h:90,  color:'#fffbeb', border:'#fcd34d', label:'Hen House 1' },
-  'Hen House 2': { x:560, y:110, w:150, h:100, color:'#fffbeb', border:'#fcd34d', label:'Hen House 2' },
-  'Field C':     { x:10,  y:220, w:200, h:120, color:'#f0fdf4', border:'#6ee7b7', label:'Field C'     },
-  'Pen 1':       { x:220, y:220, w:90,  h:120, color:'#fdf2f8', border:'#f0abfc', label:'Pen 1'       },
-  'Farrowing':   { x:320, y:220, w:60,  h:120, color:'#fff7ed', border:'#fdba74', label:'Farrowing'   },
-  'Field D':     { x:390, y:220, w:160, h:120, color:'#fefce8', border:'#bef264', label:'Field D'     },
-  'Orchard':     { x:560, y:220, w:150, h:120, color:'#fafaf9', border:'#a8a29e', label:'Orchard'     },
-  'Quarantine':  { x:10,  y:350, w:150, h:100, color:'#fff1f2', border:'#fca5a5', label:'Quarantine'  },
-  'Field E':     { x:170, y:350, w:200, h:100, color:'#f0fdf4', border:'#6ee7b7', label:'Field E'     },
-  'Pond Area':   { x:380, y:350, w:130, h:100, color:'#eff6ff', border:'#93c5fd', label:'Pond Area'   },
-  'Hutch Row A': { x:520, y:350, w:190, h:100, color:'#f5f5f4', border:'#d6d3d1', label:'Hutch Row A' },
 };
 
 /* ── Species helpers ────────────────────────────────────────────────── */
@@ -93,14 +69,6 @@ function outsideFarm(trk, center, radius) {
 
 function formatDist(m) {
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
-}
-
-/* ── Schematic marker helpers ───────────────────────────────────────── */
-
-function markerPos(id, zone) {
-  const a = Math.abs(Math.sin(id * 127.1 + 1) * 9999) % 1;
-  const b = Math.abs(Math.sin(id * 311.7 + 7) * 9999) % 1;
-  return { x: zone.x + 14 + a * (zone.w - 28), y: zone.y + 18 + b * (zone.h - 36) };
 }
 
 /* ── Shared helpers ─────────────────────────────────────────────────── */
@@ -256,158 +224,6 @@ function DetailPanel({ animal, healthRecords, distFromCenter, farmRadius, onClos
               No health records found.
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Boundary Editor Modal ──────────────────────────────────────────── */
-
-function BoundaryEditor({ current, onSave, onClose }) {
-  const containerRef = useRef(null);
-  const mapRef       = useRef(null);
-  const centreMarkerRef = useRef(null);
-  const circleRef    = useRef(null);
-
-  const [lat,    setLat]    = useState(current.lat);
-  const [lng,    setLng]    = useState(current.lng);
-  const [radius, setRadius] = useState(current.radius);
-
-  const latRef    = useRef(lat);
-  const lngRef    = useRef(lng);
-  const radiusRef = useRef(radius);
-  useEffect(() => { latRef.current = lat; }, [lat]);
-  useEffect(() => { lngRef.current = lng; }, [lng]);
-  useEffect(() => { radiusRef.current = radius; }, [radius]);
-
-  // Init map
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: true });
-    mapRef.current = map;
-
-    L.tileLayer(TILE_LAYERS.satellite.url, { attribution: TILE_LAYERS.satellite.attribution }).addTo(map);
-
-    // Draggable centre marker
-    const centreIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:22px;height:22px;border-radius:50%;background:#16a34a;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:grab"></div>`,
-      iconSize: [22, 22], iconAnchor: [11, 11],
-    });
-    const marker = L.marker([latRef.current, lngRef.current], { icon: centreIcon, draggable: true }).addTo(map);
-    marker.on('dragend', (e) => {
-      const { lat: la, lng: ln } = e.target.getLatLng();
-      setLat(parseFloat(la.toFixed(6)));
-      setLng(parseFloat(ln.toFixed(6)));
-      if (circleRef.current) circleRef.current.setLatLng([la, ln]);
-    });
-    centreMarkerRef.current = marker;
-
-    // Geofence circle
-    circleRef.current = L.circle([latRef.current, lngRef.current], {
-      radius: radiusRef.current,
-      color: '#16a34a', fillColor: '#16a34a', fillOpacity: 0.08,
-      dashArray: '10 6', weight: 2.5,
-    }).addTo(map);
-
-    // Click to move centre
-    map.on('click', (e) => {
-      const { lat: la, lng: ln } = e.latlng;
-      setLat(parseFloat(la.toFixed(6)));
-      setLng(parseFloat(ln.toFixed(6)));
-      marker.setLatLng([la, ln]);
-      if (circleRef.current) circleRef.current.setLatLng([la, ln]);
-    });
-
-    map.setView([latRef.current, lngRef.current], 15);
-
-    return () => { map.remove(); mapRef.current = null; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Live-update circle radius
-  useEffect(() => {
-    if (circleRef.current) circleRef.current.setRadius(radius);
-  }, [radius]);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 9999, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-full max-w-2xl rounded-3xl overflow-hidden flex flex-col"
-        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,.2)', maxHeight: '90vh' }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)' }}>
-              <LocateFixed size={16} color="#22c55e" />
-            </div>
-            <div>
-              <div className="text-white font-extrabold text-base">Set Farm Boundary</div>
-              <div className="text-slate-400 text-xs mt-0.5">Click the map to move the centre · drag the green pin · adjust radius below</div>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-        </div>
-
-        {/* Map */}
-        <div ref={containerRef} style={{ height: 380, flexShrink: 0 }} />
-
-        {/* Controls */}
-        <div className="px-6 py-5 flex flex-col gap-4 flex-shrink-0 border-t border-slate-100">
-          {/* Radius slider */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-600">Geofence Radius</label>
-              <span className="text-sm font-extrabold text-green-700 tabular-nums">
-                {radius >= 1000 ? `${(radius / 1000).toFixed(2)} km` : `${radius} m`}
-              </span>
-            </div>
-            <input type="range" min={100} max={5000} step={50} value={radius}
-              onChange={e => setRadius(Number(e.target.value))}
-              className="w-full accent-green-600" />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-              <span>100 m</span><span>1 km</span><span>2 km</span><span>3 km</span><span>5 km</span>
-            </div>
-          </div>
-
-          {/* Coordinate display */}
-          <div className="grid grid-cols-2 gap-3">
-            {[['Latitude', lat, setLat], ['Longitude', lng, setLng]].map(([label, val, setter]) => (
-              <div key={label}>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">{label}</label>
-                <input type="number" step="0.000001" value={val}
-                  onChange={e => {
-                    const n = parseFloat(e.target.value);
-                    if (isNaN(n)) return;
-                    setter(n);
-                    if (mapRef.current && centreMarkerRef.current) {
-                      const newLat = label === 'Latitude' ? n : latRef.current;
-                      const newLng = label === 'Longitude' ? n : lngRef.current;
-                      centreMarkerRef.current.setLatLng([newLat, newLng]);
-                      if (circleRef.current) circleRef.current.setLatLng([newLat, newLng]);
-                      mapRef.current.panTo([newLat, newLng]);
-                    }
-                  }}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-700 focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100" />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
-              Cancel
-            </button>
-            <button onClick={() => { onSave({ lat, lng, radius }); onClose(); }}
-              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
-              style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)' }}>
-              Save Boundary
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -588,67 +404,6 @@ function GPSMap({ trackedAnimals, selected, onSelect, farmCenter, farmRadius }) 
 
 /* ── Farm Schematic (SVG plan) ──────────────────────────────────────── */
 
-function FarmSchematic({ trackedAnimals, selected, onSelect }) {
-  const [hovered, setHovered] = useState(null);
-  return (
-    <div className="relative w-full overflow-auto rounded-2xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-      {/* Legend */}
-      <div className="absolute top-3 right-3 z-10 rounded-xl px-3 py-2.5 flex flex-col gap-1.5"
-        style={{ background: 'rgba(255,255,255,.95)', border: '1px solid #e2e8f0', backdropFilter: 'blur(8px)', boxShadow: '0 4px 16px rgba(0,0,0,.06)' }}>
-        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Species</div>
-        {[...new Set(trackedAnimals.map(a => a.species))].map(sp => (
-          <div key={sp} className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: SPECIES_MARKER[sp]?.bg || '#64748b' }} />
-            {SPECIES_META[sp]} {sp}
-          </div>
-        ))}
-      </div>
-      <svg viewBox="0 0 720 460" style={{ minWidth: 520, width: '100%', display: 'block' }}>
-        <rect x="5" y="5" width="710" height="450" rx="12" fill="#f0fdf4" stroke="#bbf7d0" strokeWidth="2" strokeDasharray="8 4" />
-        {Object.entries(FARM_ZONES).map(([name, z]) => (
-          <g key={name}>
-            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="8" fill={z.color} stroke={z.border} strokeWidth="1.5" />
-            <text x={z.x + z.w / 2} y={z.y + 13} textAnchor="middle"
-              style={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700, fontFamily: 'ui-sans-serif,sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {z.label}
-            </text>
-          </g>
-        ))}
-        {trackedAnimals.map(animal => {
-          const zone = FARM_ZONES[animal.location];
-          if (!zone) return null;
-          const pos  = markerPos(animal.id, zone);
-          const mk   = SPECIES_MARKER[animal.species] || SPECIES_MARKER.Cattle;
-          const isSel = selected?.id === animal.id;
-          const isHov = hovered === animal.id;
-          return (
-            <g key={animal.id} style={{ cursor: 'pointer' }}
-              onClick={() => onSelect(isSel ? null : animal)}
-              onMouseEnter={() => setHovered(animal.id)}
-              onMouseLeave={() => setHovered(null)}>
-              {(isSel || isHov) && <circle cx={pos.x} cy={pos.y} r="16" fill="none" stroke={mk.bg} strokeWidth="3" opacity="0.6" />}
-              <circle cx={pos.x} cy={pos.y} r={isSel ? 13 : 10} fill={mk.bg} stroke="#fff" strokeWidth="2"
-                style={{ filter: isSel ? `drop-shadow(0 0 6px ${mk.bg}99)` : 'none' }} />
-              <text x={pos.x} y={pos.y + 5} textAnchor="middle" style={{ fontSize: isSel ? 13 : 10, userSelect: 'none' }}>
-                {SPECIES_META[animal.species] || '🐾'}
-              </text>
-              {isHov && !isSel && (
-                <g>
-                  <rect x={pos.x - 32} y={pos.y - 36} width={64} height={20} rx="6" fill="#0f172a" opacity="0.92" />
-                  <text x={pos.x} y={pos.y - 22} textAnchor="middle"
-                    style={{ fontSize: 9, fill: '#f1f5f9', fontWeight: 700, fontFamily: 'ui-sans-serif,sans-serif' }}>
-                    {animal.name} · {animal.tag}
-                  </text>
-                </g>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
 /* ── Tracked List ───────────────────────────────────────────────────── */
 
 function TrackedList({ allAnimals, onSelect, farmCenter, farmRadius }) {
@@ -724,10 +479,9 @@ function TrackedList({ allAnimals, onSelect, farmCenter, farmRadius }) {
 /* ── Page ───────────────────────────────────────────────────────────── */
 
 export default function Tracking() {
-  const { livestock, health, farmBoundary, setFarmBoundary } = useData();
-  const [view, setView]                     = useState('gps');
-  const [selected, setSelected]             = useState(null);
-  const [showBoundaryEditor, setShowBoundaryEditor] = useState(false);
+  const { livestock, health, farmBoundary } = useData();
+  const [view, setView]     = useState('gps');
+  const [selected, setSelected] = useState(null);
 
   const farmCenter = useMemo(() => [farmBoundary.lat, farmBoundary.lng], [farmBoundary.lat, farmBoundary.lng]);
   const farmRadius = farmBoundary.radius;
@@ -750,9 +504,8 @@ export default function Tracking() {
   };
 
   const TABS = [
-    { id: 'gps',      label: 'GPS Map',    icon: <Navigation size={14} /> },
-    { id: 'schematic',label: 'Farm Plan',  icon: <MapPin size={14} /> },
-    { id: 'list',     label: 'List',       icon: <List size={14} /> },
+    { id: 'gps',  label: 'GPS Map', icon: <Navigation size={14} /> },
+    { id: 'list', label: 'List',    icon: <List size={14} /> },
   ];
 
   return (
@@ -780,11 +533,6 @@ export default function Tracking() {
             <div className="w-2 h-2 rounded-full bg-green-500 pulse" />
             {trackedAnimals.length - escapedAnimals.length} On Farm
           </div>
-          <button onClick={() => setShowBoundaryEditor(true)}
-            className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl transition-all hover:opacity-80"
-            style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)', color: '#94a3b8', border: '1px solid #334155' }}>
-            <Settings size={13} /> Set Boundary
-          </button>
         </div>
       </div>
 
@@ -829,9 +577,8 @@ export default function Tracking() {
       {/* Content */}
       <div className="flex gap-4 items-start">
         <div className="flex-1 min-w-0">
-          {view === 'gps'       && <GPSMap trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
-          {view === 'schematic' && <FarmSchematic trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} />}
-          {view === 'list'      && <TrackedList allAnimals={livestock} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
+          {view === 'gps'  && <GPSMap trackedAnimals={trackedAnimals} selected={selected} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
+          {view === 'list' && <TrackedList allAnimals={livestock} onSelect={handleSelect} farmCenter={farmCenter} farmRadius={farmRadius} />}
           {view !== 'list' && <p className="text-xs text-slate-400 mt-2 text-center hidden md:block">Click any animal marker to view details</p>}
         </div>
 
@@ -846,13 +593,6 @@ export default function Tracking() {
 
     </div>
 
-    {showBoundaryEditor && (
-      <BoundaryEditor
-        current={farmBoundary}
-        onSave={setFarmBoundary}
-        onClose={() => setShowBoundaryEditor(false)}
-      />
-    )}
     </>
   );
 }

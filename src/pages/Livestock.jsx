@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Eye, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2, Search, Radio, Unlink } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { SPECIES_META } from '../data/livestock';
 import { StatusBadge } from '../components/Badge';
@@ -126,6 +126,139 @@ function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
         <FormField label="Notes">
           <Textarea rows={2} placeholder="Optional notes…" value={form.notes} onChange={set('notes')} />
         </FormField>
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function TrackerModal({ animal, onSave, onClose }) {
+  const { devices } = useData();
+  const existing = animal.tracker;
+  const registeredTrackers = devices.filter(d => d.deviceId);
+
+  // If existing tracker matches a registered device id, default to 'registered', else 'custom'
+  const initMode = existing && registeredTrackers.some(d => d.deviceId === existing.deviceId)
+    ? 'registered' : (existing ? 'custom' : 'registered');
+
+  const [mode, setMode]       = useState(initMode);
+  const [selDevice, setSelDevice] = useState(
+    initMode === 'registered' ? (existing?.deviceId || registeredTrackers[0]?.deviceId || '') : ''
+  );
+  const [customId, setCustomId] = useState(initMode === 'custom' ? (existing?.deviceId || '') : '');
+  const [battery, setBattery] = useState(existing?.battery ?? 100);
+  const [lat, setLat]         = useState(existing?.lat ?? '');
+  const [lng, setLng]         = useState(existing?.lng ?? '');
+  const [error, setError]     = useState('');
+
+  const handleSave = () => {
+    const deviceId = mode === 'registered' ? selDevice : customId.trim();
+    if (!deviceId) { setError('Device ID is required'); return; }
+    const batt = Math.min(100, Math.max(0, parseInt(battery) || 100));
+    const tracker = {
+      deviceId,
+      battery: batt,
+      lastSeen: new Date().toISOString(),
+      lat: lat !== '' && lat !== null ? parseFloat(lat) : null,
+      lng: lng !== '' && lng !== null ? parseFloat(lng) : null,
+    };
+    onSave({ ...animal, tracker });
+    onClose();
+  };
+
+  const handleRemove = () => {
+    const updated = { ...animal };
+    delete updated.tracker;
+    onSave(updated);
+    onClose();
+  };
+
+  return (
+    <Modal open title={`📡 ${existing ? 'Manage' : 'Assign'} Tracker — ${animal.tag}`} onClose={onClose}
+      footer={
+        <div className="flex items-center justify-between w-full">
+          {existing ? (
+            <Btn variant="danger" size="sm" onClick={handleRemove}>
+              <Unlink size={13} /> Remove tracker
+            </Btn>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+            <Btn onClick={handleSave}>Save tracker</Btn>
+          </div>
+        </div>
+      }>
+      <div className="flex flex-col gap-4">
+
+        {/* Mode toggle */}
+        <div className="flex gap-2">
+          {[
+            { id: 'registered', label: '📋 Registered Device' },
+            { id: 'custom',     label: '✏️ Custom ID' },
+          ].map(m => (
+            <button key={m.id} onClick={() => { setMode(m.id); setError(''); }}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all"
+              style={mode === m.id
+                ? { background: '#f0fdf4', borderColor: '#16a34a', color: '#15803d' }
+                : { background: '#f8fafc', borderColor: '#e2e8f0', color: '#64748b' }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'registered' ? (
+          <FormField label="Select device">
+            {registeredTrackers.length === 0 ? (
+              <div className="text-sm text-slate-400 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                No registered devices found — go to <strong>Sensors → Device Setup</strong> to register one, or use Custom ID.
+              </div>
+            ) : (
+              <Select value={selDevice} onChange={e => { setError(''); setSelDevice(e.target.value); }}>
+                <option value="">Select a device…</option>
+                {registeredTrackers.map(d => (
+                  <option key={d.id} value={d.deviceId}>
+                    {d.deviceId} ({d.protocol || 'MQTT'})
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+        ) : (
+          <FormField label="Device ID" hint="Enter the ID printed on your GPS tracker">
+            <Input placeholder="e.g. TRK-0042" value={customId}
+              onChange={e => { setError(''); setCustomId(e.target.value); }} />
+          </FormField>
+        )}
+
+        <FormField label="Battery %" hint="Enter current battery level (0–100)">
+          <Input type="number" min={0} max={100} placeholder="100"
+            value={battery} onChange={e => setBattery(e.target.value)} />
+        </FormField>
+
+        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            GPS Coordinates <span className="text-slate-300 font-normal normal-case">(optional — for demo / testing)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Latitude">
+              <Input type="number" step="0.000001" placeholder="e.g. -33.7300"
+                value={lat} onChange={e => setLat(e.target.value)} />
+            </FormField>
+            <FormField label="Longitude">
+              <Input type="number" step="0.000001" placeholder="e.g. 19.0100"
+                value={lng} onChange={e => setLng(e.target.value)} />
+            </FormField>
+          </div>
+          <p className="text-xs text-slate-400">
+            Leave blank if your device will push coordinates automatically. Once set, the animal will appear on the GPS map in Animal Tracking.
+          </p>
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
             style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
@@ -267,7 +400,7 @@ export default function Livestock() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 rounded-xl">
-                  {['Tag','Animal','Breed','Age','Weight','Sex','Location','Status','Actions'].map(h => (
+                  {['Tag','Animal','Breed','Age','Weight','Sex','Location','Status','Tracker','Actions'].map(h => (
                     <th key={h} className="text-left px-3 py-3 text-xs text-slate-400 font-semibold uppercase tracking-wider first:rounded-l-lg last:rounded-r-lg">{h}</th>
                   ))}
                 </tr>
@@ -290,6 +423,16 @@ export default function Livestock() {
                     </td>
                     <td className="px-3 py-3.5"><StatusBadge status={a.status} /></td>
                     <td className="px-3 py-3.5">
+                      {a.tracker ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg"
+                          style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                          <Radio size={10} /> {a.tracker.deviceId}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5">
                       <div className="flex items-center gap-1">
                         <button onClick={() => setModal({ type: 'view', animal: a })}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View">
@@ -298,6 +441,14 @@ export default function Livestock() {
                         <button onClick={() => setModal({ type: 'edit', animal: a })}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors" title="Edit">
                           <Pencil size={14} />
+                        </button>
+                        <button onClick={() => setModal({ type: 'tracker', animal: a })}
+                          className="p-1.5 rounded-lg transition-colors"
+                          style={a.tracker
+                            ? { color: '#16a34a', background: 'transparent' }
+                            : { color: '#94a3b8' }}
+                          title={a.tracker ? 'Manage tracker' : 'Assign tracker'}>
+                          <Radio size={14} />
                         </button>
                         <button onClick={() => setModal({ type: 'delete', animal: a })}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
@@ -323,6 +474,9 @@ export default function Livestock() {
       )}
       {modal?.type === 'view' && (
         <ViewModal animal={modal.animal} onClose={closeModal} />
+      )}
+      {modal?.type === 'tracker' && (
+        <TrackerModal animal={modal.animal} onSave={updateAnimal} onClose={closeModal} />
       )}
       {modal?.type === 'delete' && (
         <Modal open title="Remove animal" onClose={closeModal}

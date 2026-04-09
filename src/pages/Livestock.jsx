@@ -10,17 +10,50 @@ import clsx from 'clsx';
 const STATUSES = ['Healthy', 'Pregnant', 'Treatment'];
 const SEXES = ['Male', 'Female', 'Mixed', 'Colony'];
 
-function AnimalForm({ animal, onSave, onClose }) {
-  const [form, setForm] = useState({
-    tag: animal?.tag || '', name: animal?.name || '',
+const SPECIES_PREFIX = {
+  Cattle:'CT', Sheep:'SH', Goat:'GT', Pig:'PG', Horse:'HN',
+  Poultry:'PL', Rabbit:'RB', Alpaca:'AL', Duck:'DK', Deer:'DR', Bee:'BE',
+};
+
+function generateTag(species, existingAnimals) {
+  const prefix = SPECIES_PREFIX[species] || species.slice(0, 2).toUpperCase();
+  const used = existingAnimals
+    .filter(a => a.species === species)
+    .map(a => parseInt(a.tag.replace(/\D/g, ''), 10) || 0);
+  const next = used.length > 0 ? Math.max(...used) + 1 : 1;
+  return `${prefix}-${String(next).padStart(3, '0')}`;
+}
+
+function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
+  const isNew = !animal;
+  const [form, setForm] = useState(() => ({
+    tag: animal?.tag || (isNew ? generateTag('Cattle', existingAnimals) : ''),
+    name: animal?.name || '',
     species: animal?.species || 'Cattle', breed: animal?.breed || '',
     dob: animal?.dob || '', sex: animal?.sex || 'Female',
     weight: animal?.weight || '', location: animal?.location || '',
     status: animal?.status || 'Healthy', notes: animal?.notes || '',
-  });
+  }));
+  const [tagEdited, setTagEdited] = useState(false);
   const [error, setError] = useState('');
 
-  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
+  const set = (k) => (e) => {
+    setError('');
+    if (k === 'tag') setTagEdited(true);
+    setForm(p => ({ ...p, [k]: e.target.value }));
+  };
+
+  const handleSpeciesChange = (e) => {
+    const species = e.target.value;
+    setError('');
+    setForm(p => ({
+      ...p,
+      species,
+      breed: '',
+      tag: (!tagEdited && isNew) ? generateTag(species, existingAnimals) : p.tag,
+    }));
+  };
+
   const breeds = SPECIES_META[form.species]?.breeds || [];
 
   const handleSave = () => {
@@ -43,7 +76,7 @@ function AnimalForm({ animal, onSave, onClose }) {
     >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Tag / ID *">
+          <FormField label="Tag / ID *" hint={isNew ? 'Auto-generated — edit to use your own ear tag' : undefined}>
             <Input placeholder="e.g. CT-010" value={form.tag} onChange={set('tag')} />
           </FormField>
           <FormField label="Name">
@@ -52,7 +85,7 @@ function AnimalForm({ animal, onSave, onClose }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Species *">
-            <Select value={form.species} onChange={e => setForm(p => ({ ...p, species: e.target.value, breed: '' }))}>
+            <Select value={form.species} onChange={handleSpeciesChange}>
               {Object.keys(SPECIES_META).map(s => <option key={s}>{s}</option>)}
             </Select>
           </FormField>
@@ -279,10 +312,10 @@ export default function Livestock() {
 
       {/* Modals */}
       {modal?.type === 'add' && (
-        <AnimalForm onSave={addAnimal} onClose={closeModal} />
+        <AnimalForm existingAnimals={livestock} onSave={addAnimal} onClose={closeModal} />
       )}
       {modal?.type === 'edit' && (
-        <AnimalForm animal={modal.animal} onSave={updateAnimal} onClose={closeModal} />
+        <AnimalForm animal={modal.animal} existingAnimals={livestock} onSave={updateAnimal} onClose={closeModal} />
       )}
       {modal?.type === 'view' && (
         <ViewModal animal={modal.animal} onClose={closeModal} />

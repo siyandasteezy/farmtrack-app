@@ -1,10 +1,11 @@
-export function FormField({ label, error, children, className = '' }) {
+export function FormField({ label, hint, error, children, className = '' }) {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
         <label className="text-sm font-semibold text-slate-700">{label}</label>
       )}
       {children}
+      {hint && !error && <p className="text-xs text-slate-400">{hint}</p>}
       {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );

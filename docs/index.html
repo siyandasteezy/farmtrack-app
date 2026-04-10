@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FarmTrack — User Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-900: #14532d;
+      --green-700: #15803d;
+      --green-600: #16a34a;
+      --green-100: #dcfce7;
+      --green-50:  #f0fdf4;
+      --slate-800: #1e293b;
+      --slate-600: #475569;
+      --slate-400: #94a3b8;
+      --slate-100: #f1f5f9;
+      --slate-50:  #f8fafc;
+      --white:     #ffffff;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-50);
+      color: var(--slate-800);
+      line-height: 1.65;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+      background: linear-gradient(175deg, #0f4c2a 0%, #166534 55%, #14532d 100%);
+      display: flex; flex-direction: column; overflow-y: auto; z-index: 10;
+      box-shadow: 4px 0 32px rgba(0,0,0,.2);
+    }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 12px;
+      padding: 28px 20px 24px; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .brand-icon {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: rgba(255,255,255,.12); display: flex; align-items: center;
+      justify-content: center; font-size: 24px; flex-shrink: 0;
+    }
+    .brand-name { color: #fff; font-weight: 800; font-size: 20px; line-height: 1; }
+    .brand-sub  { color: rgba(255,255,255,.5); font-size: 11px; margin-top: 3px; }
+    .nav-section-label {
+      padding: 20px 20px 8px;
+      color: rgba(255,255,255,.3); font-size: 10px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .nav { list-style: none; padding: 0 10px; display: flex; flex-direction: column; gap: 2px; }
+    .nav a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 10px;
+      color: rgba(255,255,255,.65); font-size: 13px; font-weight: 500;
+      text-decoration: none; transition: background .15s;
+    }
+    .nav a:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .nav a.active { background: #fff; color: var(--green-900); font-weight: 700; }
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-footer {
+      margin-top: auto; padding: 16px; border-top: 1px solid rgba(255,255,255,.08);
+      color: rgba(255,255,255,.4); font-size: 11px; text-align: center;
+    }
+
+    /* ── Main content ── */
+    .main { margin-left: 260px; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0f4c2a 0%, #16a34a 60%, #4ade80 100%);
+      color: #fff; padding: 80px 60px; position: relative; overflow: hidden;
+    }
+    .hero::after {
+      content: '🐄'; position: absolute; right: 60px; top: 50%;
+      transform: translateY(-50%); font-size: 120px; opacity: .15;
+    }
+    .hero-tag {
+      display: inline-block; background: rgba(255,255,255,.15); color: rgba(255,255,255,.9);
+      font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 20px; margin-bottom: 20px;
+    }
+    .hero h1 { font-size: 42px; font-weight: 900; line-height: 1.1; margin-bottom: 16px; }
+    .hero p  { font-size: 17px; opacity: .85; max-width: 560px; line-height: 1.7; }
+    .hero-meta {
+      display: flex; gap: 32px; margin-top: 36px; flex-wrap: wrap;
+    }
+    .hero-meta-item { font-size: 13px; opacity: .7; }
+    .hero-meta-item strong { display: block; color: #fff; font-size: 16px; opacity: 1; margin-bottom: 2px; }
+
+    /* ── Content area ── */
+    .content { padding: 0 60px 80px; }
+
+    /* ── TOC ── */
+    .toc-card {
+      background: var(--white); border: 1px solid #e2e8f0; border-radius: var(--radius);
+      padding: 32px 36px; margin: 48px 0;
+      box-shadow: var(--shadow);
+    }
+    .toc-card h2 { font-size: 18px; font-weight: 800; color: var(--slate-800); margin-bottom: 20px; }
+    .toc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .toc-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 8px; background: var(--slate-50);
+      text-decoration: none; color: var(--slate-600); font-size: 13px; font-weight: 500;
+      border: 1px solid #e2e8f0; transition: all .15s;
+    }
+    .toc-item:hover { background: var(--green-50); border-color: var(--green-600); color: var(--green-700); }
+    .toc-num {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--green-600);
+      color: #fff; font-size: 11px; font-weight: 800; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    /* ── Section ── */
+    .section { margin-top: 72px; scroll-margin-top: 24px; }
+    .section-header {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+      padding-bottom: 20px; border-bottom: 2px solid var(--green-100);
+    }
+    .section-icon {
+      width: 52px; height: 52px; border-radius: 16px;
+      background: var(--green-50); border: 1.5px solid var(--green-100);
+      display: flex; align-items: center; justify-content: center; font-size: 26px;
+      flex-shrink: 0;
+    }
+    .section-num { color: var(--green-600); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .section-title { font-size: 26px; font-weight: 800; color: var(--slate-800); line-height: 1.2; }
+    .section-desc { color: var(--slate-600); font-size: 14px; margin-top: 2px; }
+
+    /* ── Screenshot ── */
+    .screenshot-wrap {
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,.12); border: 1px solid #e2e8f0;
+      margin: 24px 0;
+    }
+    .screenshot-wrap img { display: block; width: 100%; }
+    .screenshot-caption {
+      font-size: 12px; color: var(--slate-400); text-align: center;
+      margin-top: 10px; margin-bottom: 8px;
+    }
+
+    /* ── Feature list ── */
+    .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+    .feature {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px; background: var(--white); border: 1px solid #e2e8f0;
+      border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    }
+    .feature-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green-600);
+      margin-top: 6px; flex-shrink: 0;
+    }
+    .feature-title { font-size: 13px; font-weight: 700; color: var(--slate-800); margin-bottom: 3px; }
+    .feature-desc  { font-size: 12px; color: var(--slate-600); line-height: 1.5; }
+
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+    .step {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 18px; background: var(--white); border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--green-600); color: #fff;
+      font-size: 13px; font-weight: 800; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-body { flex: 1; }
+    .step-title { font-size: 13px; font-weight: 700; color: var(--slate-800); margin-bottom: 3px; }
+    .step-desc  { font-size: 12px; color: var(--slate-600); line-height: 1.5; }
+
+    /* ── Tip / callout ── */
+    .tip {
+      display: flex; gap: 12px; padding: 16px 20px;
+      background: var(--green-50); border: 1px solid var(--green-100);
+      border-left: 4px solid var(--green-600); border-radius: 10px;
+      margin: 20px 0;
+    }
+    .tip-icon { font-size: 18px; flex-shrink: 0; }
+    .tip-body { font-size: 13px; color: var(--slate-600); line-height: 1.6; }
+    .tip-body strong { color: var(--slate-800); }
+
+    .warn {
+      display: flex; gap: 12px; padding: 16px 20px;
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b; border-radius: 10px;
+      margin: 20px 0;
+    }
+    .warn-body { font-size: 13px; color: #78350f; line-height: 1.6; }
+    .warn-body strong { color: #92400e; }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .badge-green { background: var(--green-100); color: var(--green-700); }
+    .badge-blue  { background: #dbeafe; color: #1d4ed8; }
+    .badge-amber { background: #fef3c7; color: #d97706; }
+    .badge-red   { background: #fee2e2; color: #dc2626; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 60px 0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .hero, .content { padding-left: 24px; padding-right: 24px; }
+      .toc-grid { grid-template-columns: repeat(2, 1fr); }
+      .features { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ SIDEBAR ═══════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">🐄</div>
+    <div>
+      <div class="brand-name">FarmTrack</div>
+      <div class="brand-sub">User Documentation</div>
+    </div>
+  </div>
+  <div class="nav-section-label">Contents</div>
+  <ul class="nav">
+    <li><a href="#getting-started"><span class="nav-icon">🚀</span> Getting Started</a></li>
+    <li><a href="#farm-plan"><span class="nav-icon">🗺️</span> Farm Plan</a></li>
+    <li><a href="#livestock"><span class="nav-icon">🐄</span> Livestock</a></li>
+    <li><a href="#health"><span class="nav-icon">❤️</span> Health &amp; Vet</a></li>
+    <li><a href="#sensors"><span class="nav-icon">📡</span> Sensors</a></li>
+    <li><a href="#feed"><span class="nav-icon">🌾</span> Feed &amp; Nutrition</a></li>
+    <li><a href="#equipment"><span class="nav-icon">🔧</span> Equipment</a></li>
+    <li><a href="#regulations"><span class="nav-icon">📋</span> Regulations</a></li>
+    <li><a href="#reports"><span class="nav-icon">📊</span> Reports</a></li>
+    <li><a href="#tracking"><span class="nav-icon">📍</span> Animal Tracking</a></li>
+    <li><a href="#billing"><span class="nav-icon">💳</span> Billing</a></li>
+  </ul>
+  <div class="sidebar-footer">FarmTrack Pro · v1.0</div>
+</nav>
+
+<!-- ═══════════════════════════════════ MAIN ═══════════════════════════════════ -->
+<main class="main">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">User Documentation · v1.0</div>
+    <h1>FarmTrack<br>User Guide</h1>
+    <p>Everything you need to manage your farm — livestock records, health tracking, GPS monitoring, sensors, feed, equipment, and more — all in one place.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><strong>11 Modules</strong>Complete feature set</div>
+      <div class="hero-meta-item"><strong>Real-time</strong>Live IoT sensor data</div>
+      <div class="hero-meta-item"><strong>GPS Tracking</strong>Geofence alerts</div>
+      <div class="hero-meta-item"><strong>14-day Trial</strong>Free to start</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- TOC -->
+    <div class="toc-card">
+      <h2>📖 Table of Contents</h2>
+      <div class="toc-grid">
+        <a class="toc-item" href="#getting-started"><span class="toc-num">1</span> Getting Started</a>
+        <a class="toc-item" href="#farm-plan"><span class="toc-num">2</span> Farm Plan</a>
+        <a class="toc-item" href="#livestock"><span class="toc-num">3</span> Livestock</a>
+        <a class="toc-item" href="#health"><span class="toc-num">4</span> Health &amp; Vet</a>
+        <a class="toc-item" href="#sensors"><span class="toc-num">5</span> Sensors</a>
+        <a class="toc-item" href="#feed"><span class="toc-num">6</span> Feed &amp; Nutrition</a>
+        <a class="toc-item" href="#equipment"><span class="toc-num">7</span> Equipment</a>
+        <a class="toc-item" href="#regulations"><span class="toc-num">8</span> Regulations</a>
+        <a class="toc-item" href="#reports"><span class="toc-num">9</span> Reports</a>
+        <a class="toc-item" href="#tracking"><span class="toc-num">10</span> Animal Tracking</a>
+        <a class="toc-item" href="#billing"><span class="toc-num">11</span> Billing</a>
+      </div>
+    </div>
+
+    <!-- ═══ 1. GETTING STARTED ═══ -->
+    <section class="section" id="getting-started">
+      <div class="section-header">
+        <div class="section-icon">🚀</div>
+        <div>
+          <div class="section-num">Section 1</div>
+          <div class="section-title">Getting Started</div>
+          <div class="section-desc">Create your account and navigate the app for the first time</div>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Create an Account</div>
+            <div class="feature-desc">Register with your name, farm name, email and password. A 14-day free trial activates immediately.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Sign In</div>
+            <div class="feature-desc">Use your email and password to access the dashboard. Demo credentials are shown on the login screen.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Navigation</div>
+            <div class="feature-desc">The green sidebar on the left contains all modules. Farm Plan is always the first item — start there.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Data Persistence</div>
+            <div class="feature-desc">All your data is saved locally in your browser. Nothing is lost on page refresh.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:28px 0 12px;">Login Screen</h3>
+      <div class="screenshot-wrap">
+        <img src="screenshots/login.png" alt="FarmTrack Login" />
+      </div>
+      <p class="screenshot-caption">The login screen — use demo credentials <strong>john@greenmeadows.farm / farm1234</strong> to explore the app.</p>
+
+      <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:28px 0 12px;">Registration</h3>
+      <div class="screenshot-wrap">
+        <img src="screenshots/register.png" alt="FarmTrack Registration" />
+      </div>
+      <p class="screenshot-caption">Create an account to start a 14-day free trial — no card required.</p>
+
+      <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:28px 0 12px;">Dashboard</h3>
+      <div class="screenshot-wrap">
+        <img src="screenshots/dashboard.png" alt="FarmTrack Dashboard" />
+      </div>
+      <p class="screenshot-caption">The Dashboard gives an at-a-glance view of your herd health, sensor alerts, upcoming vet visits, and farm analytics.</p>
+
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body"><strong>Recommended first steps:</strong> Open <strong>Farm Plan</strong> first and enter your farm's name, location coordinates, and define your farm boundary. This sets the default location used across the entire app.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 2. FARM PLAN ═══ -->
+    <section class="section" id="farm-plan">
+      <div class="section-header">
+        <div class="section-icon">🗺️</div>
+        <div>
+          <div class="section-num">Section 2</div>
+          <div class="section-title">Farm Plan</div>
+          <div class="section-desc">Configure your farm profile, GPS boundary, and named zones</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/farm-plan.png" alt="Farm Plan" />
+      </div>
+      <p class="screenshot-caption">Farm Plan — the central configuration page for your farm setup.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Farm Profile</div>
+            <div class="feature-desc">Enter your farm name, address, country, total area, and precise GPS coordinates (latitude &amp; longitude).</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Farm Boundary</div>
+            <div class="feature-desc">Draw a circular or custom polygon geofence on a satellite map. Used by Animal Tracking to detect escaped animals.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Zones &amp; Locations</div>
+            <div class="feature-desc">Define named areas like Paddock A, Barn 1, Field B. Zones populate the location dropdowns in Livestock and Sensors.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Boundary Shapes</div>
+            <div class="feature-desc">Choose between a simple <strong>Circle</strong> (centre + radius) or a <strong>Polygon</strong> (click to draw any shape) for your geofence.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Click "Edit profile"</div><div class="step-desc">Fill in farm name, country, area, and GPS coordinates. Save to apply.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Click "Edit Boundary"</div><div class="step-desc">Choose Circle or Polygon mode. For Circle: drag the pin or click the map to position centre, then adjust the radius slider. For Polygon: click the map to add vertices (minimum 3), then Save.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Add Zones</div><div class="step-desc">Click "+ Add zone", give it a name (e.g. "Paddock A"), select a type and colour. These will appear as suggestions in all location fields across the app.</div></div></div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body"><strong>Tip:</strong> If you set your farm's latitude &amp; longitude in the Farm Profile and the boundary is still at the default location, saving your profile will automatically move the boundary centre to your real coordinates.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 3. LIVESTOCK ═══ -->
+    <section class="section" id="livestock">
+      <div class="section-header">
+        <div class="section-icon">🐄</div>
+        <div>
+          <div class="section-num">Section 3</div>
+          <div class="section-title">Livestock</div>
+          <div class="section-desc">Manage all your animals across 11 species</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/livestock.png" alt="Livestock" />
+      </div>
+      <p class="screenshot-caption">The Livestock page — species tabs, filters, search, and a full animal table with inline actions.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Auto-generated Tags</div>
+            <div class="feature-desc">Ear tags are automatically generated per species (e.g. CT-001 for Cattle, SH-001 for Sheep). You can override them with your own tag.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">11 Species Supported</div>
+            <div class="feature-desc">Cattle, Sheep, Goat, Pig, Horse, Poultry, Rabbit, Alpaca, Duck, Deer, Bee — each with breed-specific options.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">GPS Tracker Assignment</div>
+            <div class="feature-desc">Attach a registered device or enter a custom ID. Optionally add GPS coordinates for immediate map visibility. Device ID is not required if you provide coordinates.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Filter &amp; Search</div>
+            <div class="feature-desc">Filter by species, status, or location. Full-text search across tag, name, and breed.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Add an animal</div><div class="step-desc">Click "+ Add animal". Select species — the tag auto-generates. Fill in breed, date of birth, weight, sex, location, and status.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Assign a GPS tracker</div><div class="step-desc">Click the 📡 icon in the Actions column. Choose a registered device or enter a custom device ID. Optionally enter GPS coordinates to place the animal on the map immediately.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Edit or remove</div><div class="step-desc">Use the pencil icon to edit, the trash icon to delete. The eye icon shows a full read-only view of the animal record.</div></div></div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body"><strong>Location suggestions:</strong> Once you define Zones in Farm Plan, they appear as suggestions in the Location field when adding or editing an animal.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 4. HEALTH ═══ -->
+    <section class="section" id="health">
+      <div class="section-header">
+        <div class="section-icon">❤️</div>
+        <div>
+          <div class="section-num">Section 4</div>
+          <div class="section-title">Health &amp; Vet</div>
+          <div class="section-desc">Medical records, vaccinations, and scheduled vet care</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/health.png" alt="Health & Vet" />
+      </div>
+      <p class="screenshot-caption">Health &amp; Vet — track treatments, vaccinations, and upcoming scheduled visits.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Health Records</div>
+            <div class="feature-desc">Log vaccinations, treatments, check-ups, surgeries, and more against any animal by tag.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Upcoming Vaccinations</div>
+            <div class="feature-desc">Switch to the "Upcoming Vaccinations" tab to see all scheduled vaccination due dates.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Vet Cost Tracking</div>
+            <div class="feature-desc">Each record can include a vet cost. Total spend is summarised in the header stats.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Edit &amp; Delete</div>
+            <div class="feature-desc">All records support full edit and delete. Errors are shown inline at the bottom of the form.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Click "+ Add record"</div><div class="step-desc">Select the animal tag, health event type (Vaccination, Treatment, Check-up, etc.), date, and vet details.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Track ongoing events</div><div class="step-desc">Set the status to "Ongoing" for treatments in progress. These appear in the Ongoing count on the summary bar.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Schedule future vaccinations</div><div class="step-desc">Add a record with a future date and status "Scheduled". It will appear in the Upcoming Vaccinations tab.</div></div></div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 5. SENSORS ═══ -->
+    <section class="section" id="sensors">
+      <div class="section-header">
+        <div class="section-icon">📡</div>
+        <div>
+          <div class="section-num">Section 5</div>
+          <div class="section-title">Farm Sensors</div>
+          <div class="section-desc">Real-time IoT monitoring across your farm</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/sensors.png" alt="Farm Sensors" />
+      </div>
+      <p class="screenshot-caption">Sensors — live dashboard of all IoT sensors, manual reading entry, and device registration.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Add Sensors</div>
+            <div class="feature-desc">Register any sensor type — temperature, humidity, air quality, water level, weight scales, and more. Assign a location from your defined zones.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Manual Readings</div>
+            <div class="feature-desc">If a sensor goes offline, enter a manual reading with a reason. Manual readings are flagged with an (M) indicator.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Device Setup</div>
+            <div class="feature-desc">Register hardware devices via the Device Setup tab. Supports MQTT, HTTP REST, and WebSocket protocols with auto-generated configuration code snippets.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Alerts</div>
+            <div class="feature-desc">Sensors outside their min/max thresholds trigger Critical or Warning alerts shown at the top of the dashboard.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body"><strong>Location suggestions:</strong> Sensor locations are populated from your Farm Plan zones. Define your zones first, then sensor locations auto-suggest from those names.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 6. FEED ═══ -->
+    <section class="section" id="feed">
+      <div class="section-header">
+        <div class="section-icon">🌾</div>
+        <div>
+          <div class="section-num">Section 6</div>
+          <div class="section-title">Feed &amp; Nutrition</div>
+          <div class="section-desc">Track feed types, stock levels, and per-head consumption</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/feed.png" alt="Feed & Nutrition" />
+      </div>
+      <p class="screenshot-caption">Feed &amp; Nutrition — manage feed types, restock inventory, and monitor consumption per species.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Feed Types</div>
+            <div class="feature-desc">Create custom feed types per species with daily per-head consumption rates, units, stock levels, and cost per kg.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Restock</div>
+            <div class="feature-desc">Log feed orders per feed type to replenish stock. Stock levels update immediately.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Edit &amp; Delete</div>
+            <div class="feature-desc">Each feed type can be edited or removed. All changes are persisted automatically.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Empty State</div>
+            <div class="feature-desc">When no feed types exist, a guided empty state with a clear "+ Add feed type" prompt is shown.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 7. EQUIPMENT ═══ -->
+    <section class="section" id="equipment">
+      <div class="section-header">
+        <div class="section-icon">🔧</div>
+        <div>
+          <div class="section-num">Section 7</div>
+          <div class="section-title">Equipment &amp; Tickets</div>
+          <div class="section-desc">Manage farm equipment and raise maintenance tickets</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/equipment.png" alt="Equipment" />
+      </div>
+      <p class="screenshot-caption">Equipment — track all machinery and raise maintenance tickets when something needs attention.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Equipment Register</div>
+            <div class="feature-desc">Add equipment with name, type, serial number, location, purchase date, and status (Active / Maintenance / Retired).</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Maintenance Tickets</div>
+            <div class="feature-desc">Switch to the Tickets tab to raise, update, and resolve maintenance requests. Set priority (Low / Medium / High / Critical).</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Status Tracking</div>
+            <div class="feature-desc">Summary cards show total equipment, active count, under maintenance, and retired counts at a glance.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Search &amp; Filter</div>
+            <div class="feature-desc">Search by name, serial number, or location. Filter by type and status.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 8. REGULATIONS ═══ -->
+    <section class="section" id="regulations">
+      <div class="section-header">
+        <div class="section-icon">📋</div>
+        <div>
+          <div class="section-num">Section 8</div>
+          <div class="section-title">Regulations &amp; Compliance</div>
+          <div class="section-desc">International livestock farming standards reference guide</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/regulations.png" alt="Regulations" />
+      </div>
+      <p class="screenshot-caption">Regulations — a comprehensive reference of livestock farming compliance requirements, grouped by category.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Categories</div>
+            <div class="feature-desc">Animal Welfare, Health &amp; Biosecurity, Environmental, Traceability &amp; Record-Keeping, Organic &amp; Certification, and more.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Requirement Levels</div>
+            <div class="feature-desc">Each regulation is tagged as <span class="badge badge-red">Mandatory</span>, <span class="badge badge-amber">Required</span>, or <span class="badge badge-blue">Recommended</span>.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Search &amp; Filter</div>
+            <div class="feature-desc">Search regulations by keyword. Filter by category to focus on the relevant area.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Expandable Detail</div>
+            <div class="feature-desc">Click any regulation to expand full details, legal references, and practical guidance notes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn">
+        <div class="tip-icon">⚠️</div>
+        <div class="warn-body"><strong>Note:</strong> The regulations reference is based on common international standards. Always consult your local agricultural authority for jurisdiction-specific requirements.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 9. REPORTS ═══ -->
+    <section class="section" id="reports">
+      <div class="section-header">
+        <div class="section-icon">📊</div>
+        <div>
+          <div class="section-num">Section 9</div>
+          <div class="section-title">Reports &amp; Analytics</div>
+          <div class="section-desc">Farm performance insights and trend charts</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/reports.png" alt="Reports" />
+      </div>
+      <p class="screenshot-caption">Reports — performance KPIs, health event charts, weight trends, and production summaries.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">KPI Summary</div>
+            <div class="feature-desc">Herd growth (YTD), milk yield average, vet spend YTD, and average weight gain — all in the top summary row.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Monthly Health Events</div>
+            <div class="feature-desc">A bar chart showing births, treatments, and vaccinations per month over the past 6 months.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Weight Trends</div>
+            <div class="feature-desc">Line chart showing weight progression per animal over time. Helps spot growth concerns early.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Production Summary</div>
+            <div class="feature-desc">Species headcount, egg production estimates, milk yield, and vet spend — with month-over-month delta indicators.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 10. TRACKING ═══ -->
+    <section class="section" id="tracking">
+      <div class="section-header">
+        <div class="section-icon">📍</div>
+        <div>
+          <div class="section-num">Section 10</div>
+          <div class="section-title">Animal Tracking</div>
+          <div class="section-desc">Live GPS map with geofence alerts for escaped animals</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/tracking.png" alt="Animal Tracking" />
+      </div>
+      <p class="screenshot-caption">Animal Tracking — live satellite map showing all GPS-tracked animals against your farm boundary.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Live GPS Map</div>
+            <div class="feature-desc">Satellite and street map views. Each tracked animal appears as a coloured species marker. Click any marker to open the detail panel.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Escape Alerts</div>
+            <div class="feature-desc">Animals outside the farm boundary are flagged in red with an "OUTSIDE" badge. An alert banner shows their distance from centre and last-seen time.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Polygon &amp; Circle Geofence</div>
+            <div class="feature-desc">Supports both circular (radius-based) and custom polygon boundaries defined in Farm Plan. Point-in-polygon detection for complex shapes.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">List View</div>
+            <div class="feature-desc">Switch to List view for a full table of all animals with battery level, distance from centre, last-seen time, and device ID.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Set your farm boundary</div><div class="step-desc">Go to Farm Plan → Edit Boundary. Choose Circle or Polygon and position it over your farm on the satellite map.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Assign trackers to animals</div><div class="step-desc">In Livestock, click the 📡 icon on any animal row. Enter the device ID or GPS coordinates. Save — the animal will appear on the map immediately.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Monitor from the map</div><div class="step-desc">Open Animal Tracking. Animals within boundary show green; those outside show red. Click a marker to see health history, battery level, and exact coordinates.</div></div></div>
+      </div>
+
+      <div class="warn">
+        <div class="tip-icon">⚠️</div>
+        <div class="warn-body"><strong>Battery alerts:</strong> Animals whose trackers have less than 20% battery appear in the low battery warning banner. Replace or charge tracker units promptly to maintain continuous monitoring.</div>
+      </div>
+    </section>
+
+    <hr />
+
+    <!-- ═══ 11. BILLING ═══ -->
+    <section class="section" id="billing">
+      <div class="section-header">
+        <div class="section-icon">💳</div>
+        <div>
+          <div class="section-num">Section 11</div>
+          <div class="section-title">Billing &amp; Subscription</div>
+          <div class="section-desc">Manage your FarmTrack Pro subscription and payment method</div>
+        </div>
+      </div>
+
+      <div class="screenshot-wrap">
+        <img src="screenshots/billing.png" alt="Billing" />
+      </div>
+      <p class="screenshot-caption">Billing — current plan, payment method, and invoice history.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">FarmTrack Pro</div>
+            <div class="feature-desc">$500/month with monthly or annual billing. Includes unlimited livestock records, all species, IoT sensor dashboard, and email &amp; chat support.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">14-Day Free Trial</div>
+            <div class="feature-desc">Start immediately after registration with no card required. Full access to all features during the trial period.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Payment Method</div>
+            <div class="feature-desc">Securely stored card details with an Update option. SSL-encrypted payment processing.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-dot"></div>
+          <div>
+            <div class="feature-title">Invoice History</div>
+            <div class="feature-desc">Download past invoices directly from the billing page. Each invoice shows date, amount, and payment status.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body"><strong>What's included in Pro:</strong> Unlimited livestock records · All 11 species · Real-time IoT sensor dashboard · Feed &amp; nutrition management · Advanced reports &amp; analytics · Regulatory compliance guide · Email &amp; chat support.</div>
+      </div>
+    </section>
+
+    <hr style="margin-top:40px;" />
+
+    <!-- Footer -->
+    <div style="text-align:center; padding:40px 0 20px; color:#94a3b8; font-size:13px;">
+      <div style="font-size:32px; margin-bottom:12px;">🐄</div>
+      <div style="font-weight:800; color:#1e293b; font-size:16px; margin-bottom:6px;">FarmTrack Pro</div>
+      <div>Livestock management for modern farms</div>
+      <div style="margin-top:16px; font-size:11px;">Documentation v1.0 · Generated April 2026</div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+</body>
+</html>

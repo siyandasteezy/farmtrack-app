@@ -6,7 +6,18 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# Redirect all routes to index.html so React Router handles navigation
+# Serve docs as static files — must come before the SPA catch-all
+[[redirects]]
+  from   = "/docs"
+  to     = "/docs/index.html"
+  status = 200
+
+[[redirects]]
+  from   = "/docs/*"
+  to     = "/docs/:splat"
+  status = 200
+
+# Redirect all other routes to index.html so React Router handles navigation
 [[redirects]]
   from   = "/*"
   to     = "/index.html"

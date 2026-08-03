@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 
+import Home        from './pages/Home';
 import Login       from './pages/Login';
 import Register    from './pages/Register';
 import Payment     from './pages/Payment';
@@ -34,6 +35,9 @@ function AuthRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public marketing home */}
+      <Route path="/" element={<Home />} />
+
       {/* Public auth routes */}
       <Route path="/login"    element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><Register /></AuthRoute>} />

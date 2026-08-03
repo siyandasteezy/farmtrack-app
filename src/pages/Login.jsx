@@ -111,12 +111,6 @@ export default function Login() {
             Don't have an account?{' '}
             <Link to="/register" className="font-bold hover:underline" style={{ color: '#16a34a' }}>Create one</Link>
           </div>
-
-          {/* Demo hint */}
-          <div className="mt-5 p-3.5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-500 text-center">
-            <p className="font-bold text-slate-600 mb-0.5">Demo credentials</p>
-            john@greenmeadows.farm · farm1234
-          </div>
         </div>
       </div>
     </div>

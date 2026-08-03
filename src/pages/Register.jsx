@@ -48,7 +48,7 @@ export default function Register() {
           >
             🐄
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">FarmTrack</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">insimi</h1>
           <p className="text-slate-500 mt-1 text-sm">Start your 14-day free trial today</p>
         </div>
 
@@ -56,7 +56,7 @@ export default function Register() {
           style={{ boxShadow: '0 4px 6px rgba(0,0,0,.04), 0 20px 60px rgba(0,0,0,.08)', border: '1px solid rgba(255,255,255,.8)' }}>
 
           <h2 className="text-xl font-extrabold text-slate-800 mb-1">Create your account</h2>
-          <p className="text-sm text-slate-400 mb-6">Get started with FarmTrack in minutes</p>
+          <p className="text-sm text-slate-400 mb-6">Get started with insimi in minutes</p>
 
           {error && <AlertBox color="red" className="mb-5">{error}</AlertBox>}
 

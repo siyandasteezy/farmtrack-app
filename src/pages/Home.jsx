@@ -46,7 +46,7 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl shadow-sm"
               style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="text-lg font-extrabold tracking-tight text-slate-900">FarmTrack</span>
+            <span className="text-lg font-extrabold tracking-tight text-slate-900">insimi</span>
           </div>
           <div className="flex items-center gap-2">
             {!user && (
@@ -81,7 +81,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed fade-in">
-            FarmTrack brings every animal, sensor, health record and feed plan together in a single
+            insimi brings every animal, sensor, health record and feed plan together in a single
             platform — so you can spend less time on paperwork and more time farming.
           </p>
 
@@ -191,7 +191,7 @@ export default function Home() {
             Ready to modernise your farm?
           </h2>
           <p className="mt-4 text-slate-600 max-w-xl mx-auto">
-            Join farmers using FarmTrack to keep every animal healthy, every record straight and every decision informed.
+            Join farmers using insimi to keep every animal healthy, every record straight and every decision informed.
           </p>
           <Link to={primaryTo} className="inline-block mt-8">
             <Btn size="lg" className="px-10">{primaryLabel} <ArrowRight size={17} /></Btn>
@@ -205,9 +205,9 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
               style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="font-bold text-slate-700">FarmTrack</span>
+            <span className="font-bold text-slate-700">insimi</span>
           </div>
-          <p className="text-xs text-slate-400">© {new Date().getFullYear()} FarmTrack. Livestock management for modern farms.</p>
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} insimi. Livestock management for modern farms.</p>
           <div className="flex items-center gap-4 text-sm">
             <Link to="/login" className="text-slate-500 hover:text-slate-800 transition-colors">Sign in</Link>
             <Link to="/register" className="font-semibold hover:underline" style={{ color: '#16a34a' }}>Create account</Link>

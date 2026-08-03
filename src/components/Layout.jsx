@@ -19,7 +19,7 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
-  const title = PAGE_TITLES[location.pathname] || 'FarmTrack';
+  const title = PAGE_TITLES[location.pathname] || 'insimi';
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">

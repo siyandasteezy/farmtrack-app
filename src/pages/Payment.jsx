@@ -75,7 +75,7 @@ export default function Payment() {
             <CheckCircle size={44} style={{ color: '#16a34a' }} />
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Payment successful!</h2>
-          <p className="text-slate-500 mb-1">Welcome to FarmTrack, <strong>{user?.name}</strong>.</p>
+          <p className="text-slate-500 mb-1">Welcome to insimi, <strong>{user?.name}</strong>.</p>
           <p className="text-slate-400 mb-8 text-sm leading-relaxed">
             Your subscription is now active. You'll be billed <strong className="text-slate-600">$500/month</strong> on the same date each month.
           </p>
@@ -100,7 +100,7 @@ export default function Payment() {
           >
             🐄
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">FarmTrack Pro</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">insimi Pro</h1>
           <p className="text-slate-500 mt-1 text-sm">Complete livestock management for your farm</p>
         </div>
 
@@ -150,7 +150,7 @@ export default function Payment() {
                   <h2 className="text-xl font-extrabold text-slate-800 mb-1">Activate your subscription</h2>
                   <p className="text-sm text-slate-500 mb-6">
                     {user?.plan === 'unpaid'
-                      ? 'Complete your payment to access FarmTrack.'
+                      ? 'Complete your payment to access insimi.'
                       : 'Manage your current subscription.'}
                   </p>
 
@@ -223,7 +223,7 @@ export default function Payment() {
                     {/* Order summary */}
                     <div className="rounded-xl p-4 border border-slate-100 mt-1" style={{ background: '#f8fafc' }}>
                       <div className="flex justify-between text-sm text-slate-600 mb-1">
-                        <span>FarmTrack Pro (monthly)</span>
+                        <span>insimi Pro (monthly)</span>
                         <span className="font-semibold">$500.00</span>
                       </div>
                       <div className="flex justify-between text-sm text-green-600 mb-3 font-medium">

@@ -79,7 +79,7 @@ export default function Billing() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
           {[
-            { label: 'Plan', value: 'FarmTrack Pro' },
+            { label: 'Plan', value: 'insimi Pro' },
             { label: 'Billing cycle', value: 'Monthly' },
             { label: 'Member since', value: user?.joinedAt || '—' },
             { label: 'Next billing', value: 'Apr 1, 2024' },
@@ -182,7 +182,7 @@ export default function Billing() {
             <div className="text-4xl text-center mb-4">😟</div>
             <h3 className="text-lg font-extrabold text-slate-800 text-center mb-2">Cancel subscription?</h3>
             <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
-              You'll lose access to FarmTrack at the end of your billing period. Your data will be kept for 30 days.
+              You'll lose access to insimi at the end of your billing period. Your data will be kept for 30 days.
             </p>
             <div className="flex flex-col gap-3">
               <Btn variant="danger" className="w-full" onClick={() => { setCancelled(true); setShowCancel(false); }}>

@@ -6,9 +6,9 @@ import { AlertBox } from '../components/AlertBox';
 import { Badge } from '../components/Badge';
 
 const INVOICES = [
-  { id: 'INV-2024-003', date: '2024-03-01', amount: '$500.00', status: 'Paid' },
-  { id: 'INV-2024-002', date: '2024-02-01', amount: '$500.00', status: 'Paid' },
-  { id: 'INV-2024-001', date: '2024-01-01', amount: '$500.00', status: 'Paid' },
+  { id: 'INV-2024-003', date: '2024-03-01', amount: 'R1,800.00', status: 'Paid' },
+  { id: 'INV-2024-002', date: '2024-02-01', amount: 'R1,800.00', status: 'Paid' },
+  { id: 'INV-2024-001', date: '2024-01-01', amount: 'R1,800.00', status: 'Paid' },
 ];
 
 const FEATURES = [
@@ -46,7 +46,7 @@ export default function Billing() {
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Current Plan</p>
             <div className="flex items-end gap-2">
-              <span className="text-4xl font-extrabold text-slate-900">$500</span>
+              <span className="text-4xl font-extrabold text-slate-900">R1,800</span>
               <span className="text-slate-400 text-sm mb-1">/month</span>
               <div className="mb-1">
                 <Badge status={isPaid ? 'active' : 'unpaid'} dot>{isPaid ? 'Active' : 'Unpaid'}</Badge>
@@ -134,12 +134,12 @@ export default function Billing() {
         </div>
         <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
           <div className="w-10 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#1e40af,#1d4ed8)' }}>
+            style={{ background: 'linear-gradient(135deg,#14532d,#15803d)' }}>
             <CreditCard size={14} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-800">Visa ending in 4242</div>
-            <div className="text-xs text-slate-400 mt-0.5">Expires 12/26</div>
+            <div className="text-sm font-bold text-slate-800">Yoco secure checkout</div>
+            <div className="text-xs text-slate-400 mt-0.5">Card details entered on Yoco's payment page</div>
           </div>
           <div className="ml-auto flex items-center gap-1 text-xs font-semibold" style={{ color: '#15803d' }}>
             <Shield size={12} /> Secured

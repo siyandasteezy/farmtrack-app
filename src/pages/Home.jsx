@@ -260,7 +260,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="text-5xl font-extrabold text-slate-900">$500</span>
+              <span className="text-5xl font-extrabold text-slate-900">R1,800</span>
               <span className="text-slate-500 mb-1.5">/ month</span>
             </div>
             <p className="text-sm text-green-700 font-semibold mt-2">Starts with a 14-day free trial</p>

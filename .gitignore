@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Local env — Yoco keys etc. (never commit)
+.env
+.env.*
+!.env.example
+
+# Netlify
+.netlify
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

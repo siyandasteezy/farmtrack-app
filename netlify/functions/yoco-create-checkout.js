@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 /**
- * Creates a Yoco Checkout for one month of insimi Pro and returns the
+ * Creates a Yoco Checkout for one month of isibaya Pro and returns the
  * hosted-page redirect URL. The Yoco SECRET key lives only here, server-side
  * — it must never be exposed to the browser.
  *
@@ -44,7 +44,7 @@ export default async (req) => {
         successUrl: `${origin}/payment?yoco=success`,
         cancelUrl: `${origin}/payment?yoco=cancelled`,
         failureUrl: `${origin}/payment?yoco=failed`,
-        metadata: { userId, product: 'insimi-monthly' },
+        metadata: { userId, product: 'isibaya-monthly' },
       }),
     });
 

@@ -21,7 +21,7 @@ const MOCK_USERS = [
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const stored = localStorage.getItem('insimi_user');
+      const stored = localStorage.getItem('isibaya_user');
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
     if (!found) return { ok: false, error: 'Invalid email or password.' };
     const { password: _, ...safe } = found;
     setUser(safe);
-    localStorage.setItem('insimi_user', JSON.stringify(safe));
+    localStorage.setItem('isibaya_user', JSON.stringify(safe));
     return { ok: true, user: safe };
   }, [users]);
 
@@ -57,14 +57,14 @@ export function AuthProvider({ children }) {
     setUsers(prev => [...prev, newUser]);
     const { password: _, ...safe } = newUser;
     setUser(safe);
-    localStorage.setItem('insimi_user', JSON.stringify(safe));
+    localStorage.setItem('isibaya_user', JSON.stringify(safe));
     return { ok: true, user: safe };
   }, [users]);
 
   const activatePlan = useCallback(() => {
     setUser(prev => {
       const updated = { ...prev, plan: 'active' };
-      localStorage.setItem('insimi_user', JSON.stringify(updated));
+      localStorage.setItem('isibaya_user', JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -73,14 +73,14 @@ export function AuthProvider({ children }) {
     setUser(prev => {
       const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const updated = { ...prev, plan: 'trial', trialEnds };
-      localStorage.setItem('insimi_user', JSON.stringify(updated));
+      localStorage.setItem('isibaya_user', JSON.stringify(updated));
       return updated;
     });
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem('insimi_user');
+    localStorage.removeItem('isibaya_user');
   }, []);
 
   return (

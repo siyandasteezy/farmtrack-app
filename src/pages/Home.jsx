@@ -62,7 +62,7 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl shadow-sm"
               style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="text-lg font-extrabold tracking-tight text-slate-900">insimi</span>
+            <span className="text-lg font-extrabold tracking-tight text-slate-900">isibaya</span>
           </div>
           <div className="flex items-center gap-2">
             {!user && (
@@ -90,7 +90,7 @@ export default function Home() {
               Run your whole farm from <span style={{ color: '#15803d' }}>one dashboard</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              insimi brings every animal, sensor, health record and feed plan together in a single
+              isibaya brings every animal, sensor, health record and feed plan together in a single
               platform — so you spend less time on paperwork and more time farming.
             </p>
 
@@ -160,7 +160,7 @@ export default function Home() {
             Nine modules, one login
           </h2>
           <p className="mt-4 text-slate-600 leading-relaxed">
-            insimi replaces the spreadsheets, notebooks and guesswork with a single connected platform built for working farms.
+            isibaya replaces the spreadsheets, notebooks and guesswork with a single connected platform built for working farms.
           </p>
         </div>
 
@@ -310,10 +310,10 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
               style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="font-bold text-white">insimi</span>
+            <span className="font-bold text-white">isibaya</span>
           </div>
           <p className="text-xs text-slate-400 order-last sm:order-none text-center">
-            © {new Date().getFullYear()} insimi. Livestock management for modern farms.
+            © {new Date().getFullYear()} isibaya. Livestock management for modern farms.
           </p>
           <div className="flex items-center gap-5 text-sm">
             <Link to="/login" className="text-slate-300 hover:text-white transition-colors">Sign in</Link>

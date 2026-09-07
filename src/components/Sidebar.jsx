@@ -51,7 +51,7 @@ export function Sidebar({ open, onClose }) {
               🐄
             </div>
             <div>
-              <div className="text-white font-extrabold text-lg leading-none tracking-tight">insimi</div>
+              <div className="text-white font-extrabold text-lg leading-none tracking-tight">isibaya</div>
               <div className="text-[11px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-md inline-block"
                 style={{ background: 'rgba(255,255,255,.15)', color: 'rgba(255,255,255,.8)' }}>
                 PRO

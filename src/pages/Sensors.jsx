@@ -46,7 +46,7 @@ const PROTOCOLS = [
     id:'HTTP', label:'HTTP REST', icon:'🌐',
     color:'#16a34a', bg:'#f0fdf4', border:'#bbf7d0',
     badge:null,
-    description:'Standard HTTP POST to the insimi REST API. Best for sensors with reliable Wi-Fi or Ethernet.',
+    description:'Standard HTTP POST to the isibaya REST API. Best for sensors with reliable Wi-Fi or Ethernet.',
     useCases:['Wi-Fi sensors','Edge computers','PLC systems','Existing web-connected devices'],
   },
   {
@@ -111,8 +111,8 @@ import json, time
 
 DEVICE_ID = "${deviceId}"
 TOKEN     = "${token}"
-BROKER    = "broker.insimi.io"
-TOPIC     = f"insimi/devices/${deviceId}/telemetry"
+BROKER    = "broker.isibaya.io"
+TOPIC     = f"isibaya/devices/${deviceId}/telemetry"
 
 def read_sensor():
     return 24.3  # ← Replace with your sensor read logic
@@ -132,7 +132,7 @@ while True:
     time.sleep(60)  # reporting interval`;
 
   if (protocol==='HTTP') return `# cURL one-liner
-curl -X POST https://api.insimi.io/v1/readings \\
+curl -X POST https://api.isibaya.io/v1/readings \\
   -H "Authorization: Bearer ${token}" \\
   -H "Content-Type: application/json" \\
   -d '{"deviceId":"${deviceId}","value":24.3,"unit":"${unit}"}'
@@ -140,7 +140,7 @@ curl -X POST https://api.insimi.io/v1/readings \\
 # Python (requests)
 import requests, time
 
-URL   = "https://api.insimi.io/v1/readings"
+URL   = "https://api.isibaya.io/v1/readings"
 TOKEN = "${token}"
 
 while True:
@@ -155,7 +155,7 @@ while True:
   return `// Node.js  (npm install ws)
 const WebSocket = require('ws');
 
-const ws = new WebSocket('wss://ws.insimi.io/live/${deviceId}');
+const ws = new WebSocket('wss://ws.isibaya.io/live/${deviceId}');
 
 ws.on('open', () => {
   // 1. Authenticate
@@ -516,7 +516,7 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
               </div>
               <div>
                 <div className="text-white font-extrabold text-base">Register Physical Device</div>
-                <div className="text-slate-400 text-xs mt-0.5">Connect real sensor hardware to insimi</div>
+                <div className="text-slate-400 text-xs mt-0.5">Connect real sensor hardware to isibaya</div>
               </div>
             </div>
             <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={20}/></button>
@@ -587,7 +587,7 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
             <div className="flex flex-col gap-4">
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 mb-1">Choose Connection Protocol</h3>
-                <p className="text-sm text-slate-500">Select how your device will send data to insimi.</p>
+                <p className="text-sm text-slate-500">Select how your device will send data to isibaya.</p>
               </div>
               {PROTOCOLS.map(p=>(
                 <button key={p.id} onClick={()=>setProtocol(p.id)}
@@ -683,7 +683,7 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
                 {/* Terminal header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100" style={{background:'#f8fafc'}}>
                   <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400"/><div className="w-3 h-3 rounded-full bg-amber-400"/><div className="w-3 h-3 rounded-full bg-green-400"/></div>
-                  <span className="text-xs font-mono text-slate-400 ml-2">insimi connection test — {deviceId}</span>
+                  <span className="text-xs font-mono text-slate-400 ml-2">isibaya connection test — {deviceId}</span>
                 </div>
                 {/* Terminal body */}
                 <div className="p-4 min-h-[120px]" style={{background:'#0f172a'}}>

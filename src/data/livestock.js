@@ -11,3 +11,23 @@ export const SPECIES_META = {
   Deer:    { emoji: '🦌', breeds: ['Red Deer','Fallow Deer','White-tailed','Roe Deer','Sika','Wapiti'] },
   Bee:     { emoji: '🐝', breeds: ['Italian','Carniolan','Buckfast','Russian','Caucasian'] },
 };
+
+/* ── Bees ──────────────────────────────────────────────────────────────
+   A bee record represents a HIVE (colony), not an individual insect —
+   a single colony holds 10,000–60,000 bees. Hives are grouped by apiary
+   (the yard), which maps to the Location / Farm Plan zone.
+   ------------------------------------------------------------------- */
+
+export const COLONY_STRENGTH = ['Nucleus', 'Weak', 'Moderate', 'Strong', 'Very strong'];
+
+export const QUEEN_STATUSES = ['Queenright', 'Virgin queen', 'Requeening', 'Queenless'];
+
+/* International queen-marking colour code, keyed by the last digit of the
+   year the queen was raised. Mnemonic: "Will You Rear Good Bees". */
+export const QUEEN_COLOURS = ['Unmarked', 'White', 'Yellow', 'Red', 'Green', 'Blue'];
+
+export function queenColourForYear(year) {
+  const digit = Number(String(year).slice(-1));
+  if (Number.isNaN(digit)) return 'Unmarked';
+  return ['Blue', 'White', 'Yellow', 'Red', 'Green'][digit % 5];
+}

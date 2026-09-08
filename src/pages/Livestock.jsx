@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Plus, Eye, Pencil, Trash2, Search, Radio, Unlink } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import { SPECIES_META } from '../data/livestock';
+import {
+  SPECIES_META, COLONY_STRENGTH, QUEEN_STATUSES, QUEEN_COLOURS, queenColourForYear,
+} from '../data/livestock';
 import { StatusBadge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { FormField, Input, Select, Textarea, Btn } from '../components/FormField';
@@ -12,8 +14,12 @@ const SEXES = ['Male', 'Female', 'Mixed', 'Colony'];
 
 const SPECIES_PREFIX = {
   Cattle:'CT', Sheep:'SH', Goat:'GT', Pig:'PG', Horse:'HN',
-  Poultry:'PL', Rabbit:'RB', Alpaca:'AL', Duck:'DK', Deer:'DR', Bee:'BE',
+  Poultry:'PL', Rabbit:'RB', Alpaca:'AL', Duck:'DK', Deer:'DR', Bee:'HV',
 };
+
+/* Bees are kept as hives (colonies), so the whole page relabels itself
+   when you're working with them. */
+const isBee = (species) => species === 'Bee';
 
 function generateTag(species, existingAnimals) {
   const prefix = SPECIES_PREFIX[species] || species.slice(0, 2).toUpperCase();
@@ -24,19 +30,38 @@ function generateTag(species, existingAnimals) {
   return `${prefix}-${String(next).padStart(3, '0')}`;
 }
 
-function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
+/* Expands a base tag into `count` sequential tags: HV-001 → HV-001, HV-002…
+   Falls back to a -n suffix when the tag has no trailing number. */
+function tagSeries(baseTag, count) {
+  if (count <= 1) return [baseTag];
+  const m = baseTag.match(/^(.*?)(\d+)$/);
+  if (!m) return Array.from({ length: count }, (_, i) => (i === 0 ? baseTag : `${baseTag}-${i + 1}`));
+  const [, prefix, num] = m;
+  const start = parseInt(num, 10);
+  return Array.from({ length: count }, (_, i) =>
+    `${prefix}${String(start + i).padStart(num.length, '0')}`);
+}
+
+function AnimalForm({ animal, existingAnimals, defaultSpecies = 'Cattle', onSave, onClose }) {
   const { zones } = useData();
   const isNew = !animal;
   const [form, setForm] = useState(() => ({
-    tag: animal?.tag || (isNew ? generateTag('Cattle', existingAnimals) : ''),
+    tag: animal?.tag || (isNew ? generateTag(defaultSpecies, existingAnimals) : ''),
     name: animal?.name || '',
-    species: animal?.species || 'Cattle', breed: animal?.breed || '',
+    species: animal?.species || defaultSpecies, breed: animal?.breed || '',
     dob: animal?.dob || '', sex: animal?.sex || 'Female',
     weight: animal?.weight || '', location: animal?.location || '',
     status: animal?.status || 'Healthy', notes: animal?.notes || '',
+    // Bee (hive) fields
+    strength: animal?.strength || 'Moderate',
+    queenStatus: animal?.queenStatus || 'Queenright',
+    queenYear: animal?.queenYear || '',
+    queenColour: animal?.queenColour || 'Unmarked',
+    qty: 1,
   }));
   const [tagEdited, setTagEdited] = useState(false);
   const [error, setError] = useState('');
+  const bee = isBee(form.species);
 
   const set = (k) => (e) => {
     setError('');
@@ -58,29 +83,50 @@ function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
   const breeds = SPECIES_META[form.species]?.breeds || [];
 
   const handleSave = () => {
-    if (!form.tag.trim()) { setError('Tag / ID is required'); return; }
+    if (!form.tag.trim()) { setError(bee ? 'Hive ID is required' : 'Tag / ID is required'); return; }
+    const qty = Math.min(200, Math.max(1, parseInt(form.qty, 10) || 1));
     const age = form.dob ? Math.floor((new Date() - new Date(form.dob)) / 31557600000) : 0;
-    onSave({ ...animal, ...form, age, weight: parseFloat(form.weight) || 0 });
+
+    const { qty: _qty, ...fields } = form;
+    const base = { ...animal, ...fields, age, weight: parseFloat(form.weight) || 0 };
+    if (bee) {
+      // A colony has a queen, not a sex.
+      delete base.sex;
+    } else {
+      // Non-bee records keep no hive fields, so the rest of the app stays clean.
+      delete base.strength; delete base.queenStatus;
+      delete base.queenYear; delete base.queenColour;
+    }
+
+    if (isNew && qty > 1) {
+      // Bulk add — an apiary is set up a dozen hives at a time, not one bee.
+      tagSeries(form.tag.trim(), qty).forEach(tag => onSave({ ...base, tag }));
+    } else {
+      onSave(base);
+    }
     onClose();
   };
 
   return (
     <Modal
-      open title={animal ? `Edit — ${animal.tag}` : 'Add Animal'}
+      open
+      title={animal ? `Edit — ${animal.tag}` : (bee ? 'Add Hives' : 'Add Animal')}
       onClose={onClose}
       footer={
         <>
           <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={handleSave}>Save animal</Btn>
+          <Btn onClick={handleSave}>{bee ? 'Save hive' : 'Save animal'}</Btn>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Tag / ID *" hint={isNew ? 'Auto-generated — edit to use your own ear tag' : undefined}>
-            <Input placeholder="e.g. CT-010" value={form.tag} onChange={set('tag')} />
+          <FormField
+            label={bee ? 'Hive ID *' : 'Tag / ID *'}
+            hint={isNew ? (bee ? 'Auto-generated — edit to use your own hive number' : 'Auto-generated — edit to use your own ear tag') : undefined}>
+            <Input placeholder={bee ? 'e.g. HV-010' : 'e.g. CT-010'} value={form.tag} onChange={set('tag')} />
           </FormField>
-          <FormField label="Name">
+          <FormField label={bee ? 'Hive name' : 'Name'}>
             <Input placeholder="Optional name" value={form.name} onChange={set('name')} />
           </FormField>
         </div>
@@ -90,34 +136,89 @@ function AnimalForm({ animal, existingAnimals, onSave, onClose }) {
               {Object.keys(SPECIES_META).map(s => <option key={s}>{s}</option>)}
             </Select>
           </FormField>
-          <FormField label="Breed *">
+          <FormField label={bee ? 'Queen race *' : 'Breed *'}>
             <Select value={form.breed} onChange={set('breed')}>
-              <option value="">Select breed…</option>
+              <option value="">{bee ? 'Select race…' : 'Select breed…'}</option>
               {breeds.map(b => <option key={b}>{b}</option>)}
             </Select>
           </FormField>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Date of Birth">
+          <FormField label={bee ? 'Established' : 'Date of Birth'}
+            hint={bee ? 'When the colony was hived' : undefined}>
             <Input type="date" value={form.dob} onChange={set('dob')} />
           </FormField>
-          <FormField label="Sex">
-            <Select value={form.sex} onChange={set('sex')}>
-              {SEXES.map(s => <option key={s}>{s}</option>)}
-            </Select>
-          </FormField>
+          {bee ? (
+            <FormField label="Colony strength" hint="Rough size of the colony">
+              <Select value={form.strength} onChange={set('strength')}>
+                {COLONY_STRENGTH.map(s => <option key={s}>{s}</option>)}
+              </Select>
+            </FormField>
+          ) : (
+            <FormField label="Sex">
+              <Select value={form.sex} onChange={set('sex')}>
+                {SEXES.map(s => <option key={s}>{s}</option>)}
+              </Select>
+            </FormField>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Weight (kg)">
+          <FormField label={bee ? 'Hive weight (kg)' : 'Weight (kg)'}
+            hint={bee ? 'Total weight — tracks nectar flow & stores' : undefined}>
             <Input type="number" placeholder="kg" value={form.weight} onChange={set('weight')} />
           </FormField>
-          <FormField label="Location" hint={zones.length === 0 ? 'Add zones in Farm Plan to see suggestions' : undefined}>
-            <Input placeholder="e.g. Paddock A" value={form.location} onChange={set('location')} list="zone-options-animal" />
+          <FormField label={bee ? 'Apiary' : 'Location'} hint={zones.length === 0 ? 'Add zones in Farm Plan to see suggestions' : undefined}>
+            <Input placeholder={bee ? 'e.g. Apiary A' : 'e.g. Paddock A'} value={form.location} onChange={set('location')} list="zone-options-animal" />
             <datalist id="zone-options-animal">
               {zones.map(z => <option key={z.id} value={z.name} />)}
             </datalist>
           </FormField>
         </div>
+
+        {/* Queen — the one individually-tracked bee in a colony */}
+        {bee && (
+          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <div className="text-xs font-bold uppercase tracking-wider" style={{ color: '#b45309' }}>
+              👑 Queen
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Status">
+                <Select value={form.queenStatus} onChange={set('queenStatus')}>
+                  {QUEEN_STATUSES.map(s => <option key={s}>{s}</option>)}
+                </Select>
+              </FormField>
+              <FormField label="Year raised">
+                <Input type="number" placeholder="e.g. 2026" value={form.queenYear}
+                  onChange={e => {
+                    const y = e.target.value;
+                    setForm(p => ({
+                      ...p,
+                      queenYear: y,
+                      // Suggest the standard marking colour for that year
+                      queenColour: y.length === 4 ? queenColourForYear(y) : p.queenColour,
+                    }));
+                  }} />
+              </FormField>
+              <FormField label="Marking colour">
+                <Select value={form.queenColour} onChange={set('queenColour')}>
+                  {QUEEN_COLOURS.map(c => <option key={c}>{c}</option>)}
+                </Select>
+              </FormField>
+            </div>
+            <p className="text-xs" style={{ color: '#92400e' }}>
+              Colour follows the international queen-marking code, suggested automatically from the year.
+            </p>
+          </div>
+        )}
+
+        {/* Bulk add — set up a whole apiary at once */}
+        {isNew && (
+          <FormField
+            label={bee ? 'Number of hives' : 'Quantity'}
+            hint={`Creates sequential ${bee ? 'hive IDs' : 'tags'} from ${form.tag || '—'} (max 200)`}>
+            <Input type="number" min={1} max={200} value={form.qty} onChange={set('qty')} />
+          </FormField>
+        )}
         <FormField label="Status">
           <Select value={form.status} onChange={set('status')}>
             {STATUSES.map(s => <option key={s}>{s}</option>)}
@@ -182,8 +283,14 @@ function TrackerModal({ animal, onSave, onClose }) {
     onClose();
   };
 
+  const bee = isBee(animal.species);
+
   return (
-    <Modal open title={`📡 ${existing ? 'Manage' : 'Assign'} Tracker — ${animal.tag}`} onClose={onClose}
+    <Modal open
+      title={bee
+        ? `📡 ${existing ? 'Manage' : 'Attach'} Hive Sensor — ${animal.tag}`
+        : `📡 ${existing ? 'Manage' : 'Assign'} Tracker — ${animal.tag}`}
+      onClose={onClose}
       footer={
         <div className="flex items-center justify-between w-full">
           {existing ? (
@@ -198,6 +305,16 @@ function TrackerModal({ animal, onSave, onClose }) {
         </div>
       }>
       <div className="flex flex-col gap-4">
+
+        {bee && (
+          <div className="rounded-xl px-4 py-3 text-xs leading-relaxed"
+            style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+            🐝 Hives aren't tracked with a collar on the animal. Attach a <strong>hive scale
+            or sensor</strong> — weight reveals nectar flow, stores and swarming, while temperature
+            and humidity track brood health. The coordinates below are the <strong>apiary
+            location</strong>, shared by every hive in that yard.
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div className="flex gap-2">
@@ -233,8 +350,9 @@ function TrackerModal({ animal, onSave, onClose }) {
             )}
           </FormField>
         ) : (
-          <FormField label="Device ID" hint="Enter the ID printed on your GPS tracker">
-            <Input placeholder="e.g. TRK-0042" value={customId}
+          <FormField label="Device ID"
+            hint={bee ? 'Enter the ID printed on your hive scale / sensor' : 'Enter the ID printed on your GPS tracker'}>
+            <Input placeholder={bee ? 'e.g. HIVE-0042' : 'e.g. TRK-0042'} value={customId}
               onChange={e => { setError(''); setCustomId(e.target.value); }} />
           </FormField>
         )}
@@ -281,11 +399,20 @@ function ViewModal({ animal, onClose }) {
     <Modal open title={`${meta?.emoji} ${animal.name || animal.tag}`} onClose={onClose}
       footer={<Btn variant="secondary" onClick={onClose}>Close</Btn>}>
       <div className="grid grid-cols-2 gap-4">
-        {[
-          ['Tag', animal.tag], ['Species', animal.species], ['Breed', animal.breed],
-          ['Date of Birth', animal.dob], ['Age', `${animal.age} yr${animal.age !== 1 ? 's' : ''}`],
-          ['Weight', `${animal.weight} kg`], ['Sex', animal.sex], ['Location', animal.location],
-        ].map(([l, v]) => (
+        {(isBee(animal.species)
+          ? [
+              ['Hive ID', animal.tag], ['Species', animal.species], ['Queen race', animal.breed],
+              ['Established', animal.dob], ['Age', `${animal.age} yr${animal.age !== 1 ? 's' : ''}`],
+              ['Hive weight', `${animal.weight} kg`], ['Colony strength', animal.strength],
+              ['Apiary', animal.location], ['Queen status', animal.queenStatus],
+              ['Queen', [animal.queenYear, animal.queenColour].filter(Boolean).join(' · ')],
+            ]
+          : [
+              ['Tag', animal.tag], ['Species', animal.species], ['Breed', animal.breed],
+              ['Date of Birth', animal.dob], ['Age', `${animal.age} yr${animal.age !== 1 ? 's' : ''}`],
+              ['Weight', `${animal.weight} kg`], ['Sex', animal.sex], ['Location', animal.location],
+            ]
+        ).map(([l, v]) => (
           <div key={l}>
             <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">{l}</div>
             <div className="text-sm font-semibold text-slate-800">{v || '—'}</div>
@@ -325,6 +452,7 @@ export default function Livestock() {
 
   const countOf = (sp) => sp === 'All' ? livestock.length : livestock.filter(a => a.species === sp).length;
   const closeModal = () => setModal(null);
+  const beeView = isBee(selected);
 
   return (
     <div className="flex flex-col gap-5 fade-in">
@@ -332,10 +460,12 @@ export default function Livestock() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800">Livestock</h2>
-          <p className="text-sm text-slate-400 mt-0.5">Manage all your animals across species</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {beeView ? 'Manage your hives — one record per colony' : 'Manage all your animals across species'}
+          </p>
         </div>
         <Btn onClick={() => setModal({ type: 'add' })}>
-          <Plus size={16} /> Add animal
+          <Plus size={16} /> {beeView ? 'Add hives' : 'Add animal'}
         </Btn>
       </div>
 
@@ -404,7 +534,10 @@ export default function Livestock() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 rounded-xl">
-                  {['Tag','Animal','Breed','Age','Weight','Sex','Location','Status','Tracker','Actions'].map(h => (
+                  {(beeView
+                    ? ['Hive ID','Hive','Queen race','Age','Weight','Colony','Apiary','Status','Sensor','Actions']
+                    : ['Tag','Animal','Breed','Age','Weight','Sex','Location','Status','Tracker','Actions']
+                  ).map(h => (
                     <th key={h} className="text-left px-3 py-3 text-xs text-slate-400 font-semibold uppercase tracking-wider first:rounded-l-lg last:rounded-r-lg">{h}</th>
                   ))}
                 </tr>
@@ -421,7 +554,9 @@ export default function Livestock() {
                     <td className="px-3 py-3.5 text-slate-500">{a.breed}</td>
                     <td className="px-3 py-3.5 text-slate-600">{a.age}y</td>
                     <td className="px-3 py-3.5 text-slate-600">{a.weight} kg</td>
-                    <td className="px-3 py-3.5 text-slate-600">{a.sex}</td>
+                    <td className="px-3 py-3.5 text-slate-600">
+                      {isBee(a.species) ? (beeView ? (a.strength || '—') : '—') : a.sex}
+                    </td>
                     <td className="px-3 py-3.5">
                       <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-md">{a.location}</span>
                     </td>
@@ -464,14 +599,21 @@ export default function Livestock() {
                 ))}
               </tbody>
             </table>
-            <p className="text-xs text-slate-400 mt-3 px-1">Showing {filtered.length} of {livestock.length} animals</p>
+            <p className="text-xs text-slate-400 mt-3 px-1">
+              Showing {filtered.length} of {beeView ? countOf('Bee') : livestock.length} {beeView ? 'hives' : 'animals'}
+            </p>
           </div>
         )}
       </div>
 
       {/* Modals */}
       {modal?.type === 'add' && (
-        <AnimalForm existingAnimals={livestock} onSave={addAnimal} onClose={closeModal} />
+        <AnimalForm
+          existingAnimals={livestock}
+          defaultSpecies={selected === 'All' ? 'Cattle' : selected}
+          onSave={addAnimal}
+          onClose={closeModal}
+        />
       )}
       {modal?.type === 'edit' && (
         <AnimalForm animal={modal.animal} existingAnimals={livestock} onSave={updateAnimal} onClose={closeModal} />

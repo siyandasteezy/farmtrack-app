@@ -41,6 +41,7 @@ export function DataProvider({ children }) {
   const [zones,          setZones]           = useState(() => load('ft_zones',         []));
   const [inspections,    setInspections]     = useState(() => load('ft_inspections',   []));
   const [harvests,       setHarvests]        = useState(() => load('ft_harvests',      []));
+  const [colonyEvents,   setColonyEvents]    = useState(() => load('ft_colonyEvents',  []));
 
   const setFarmBoundary = (v) => { save('ft_farmBoundary', v); setFarmBoundaryRaw(v); };
   const setFarmProfile  = (v) => { save('ft_farmProfile',  v); setFarmProfileRaw(v); };
@@ -69,6 +70,11 @@ export function DataProvider({ children }) {
   const addHarvest    = (h)  => setHarvests(p => save('ft_harvests', [{ ...h, id: newId() }, ...p]));
   const updateHarvest = (h)  => setHarvests(p => save('ft_harvests', p.map(x => x.id === h.id ? h : x)));
   const removeHarvest = (id) => setHarvests(p => save('ft_harvests', p.filter(x => x.id !== id)));
+
+  /* ── Apiary: colony events (swarm, requeen, split, abscond…) ── */
+  const addColonyEvent    = (e)  => setColonyEvents(p => save('ft_colonyEvents', [{ ...e, id: newId() }, ...p]));
+  const updateColonyEvent = (e)  => setColonyEvents(p => save('ft_colonyEvents', p.map(x => x.id === e.id ? e : x)));
+  const removeColonyEvent = (id) => setColonyEvents(p => save('ft_colonyEvents', p.filter(x => x.id !== id)));
 
   /* ── Sensors ── */
   const addSensor    = (s)  => setSensors(p => save('ft_sensors', [...p, { ...s, id: newId(), initialValue: s.value, isManual: false }]));
@@ -172,6 +178,7 @@ export function DataProvider({ children }) {
       zones,         addZone, updateZone, removeZone,
       inspections,   addInspection, updateInspection, removeInspection,
       harvests,      addHarvest,    updateHarvest,    removeHarvest,
+      colonyEvents,  addColonyEvent, updateColonyEvent, removeColonyEvent,
     }}>
       {children}
     </DataContext.Provider>

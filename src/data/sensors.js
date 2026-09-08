@@ -3,4 +3,4 @@ export const SENSOR_CATEGORIES = [
   'Animal Health', 'Production', 'Weather', 'Security', 'Other',
 ];
 
-export const SENSOR_ICONS = ['🌡️','💧','🌬️','⚗️','🚰','🌱','🌾','🐄','🥛','🌤️','🔒','⚡','📊','🔊','Other'];
+export const SENSOR_ICONS = ['🌡️','💧','🌬️','⚗️','🚰','🌱','🌾','🐄','🥛','🐝','🍯','🌤️','🔒','⚡','📊','🔊','Other'];

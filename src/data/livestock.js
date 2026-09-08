@@ -59,6 +59,25 @@ export const NOTIFIABLE_PESTS = ['American foulbrood (AFB)'];
 
 export const HIVE_PRODUCTS = ['Honey', 'Beeswax', 'Propolis', 'Pollen', 'Royal jelly'];
 
+/* Colony events. Absconding matters here — A. m. scutellata absconds far
+   more readily than the European races most beekeeping software assumes. */
+export const COLONY_EVENTS = [
+  'Swarmed',
+  'Swarm caught / hived',
+  'Requeened',
+  'Split / increase',
+  'Combined',
+  'Absconded',
+  'Colony lost',
+  'Treated',
+  'Fed',
+  'Supered',
+  'Moved',
+];
+
+/* Events that reduce or end the colony — used to flag hives on the roll-up. */
+export const COLONY_LOSS_EVENTS = ['Absconded', 'Colony lost'];
+
 export function queenColourForYear(year) {
   const digit = Number(String(year).slice(-1));
   if (Number.isNaN(digit)) return 'Unmarked';

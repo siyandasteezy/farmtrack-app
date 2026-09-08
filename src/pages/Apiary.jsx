@@ -8,7 +8,14 @@ import { AlertBox } from '../components/AlertBox';
 import {
   BROOD_PATTERNS, STORES_LEVELS, TEMPERAMENTS,
   HIVE_PESTS, NOTIFIABLE_PESTS, HIVE_PRODUCTS,
+  COLONY_EVENTS, COLONY_LOSS_EVENTS,
 } from '../data/livestock';
+
+const EVENT_ICON = {
+  'Swarmed': '🐝', 'Swarm caught / hived': '🪤', 'Requeened': '👑',
+  'Split / increase': '➗', 'Combined': '🔗', 'Absconded': '🕊️',
+  'Colony lost': '💀', 'Treated': '💊', 'Fed': '🍽️', 'Supered': '📦', 'Moved': '🚚',
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -241,13 +248,81 @@ function HarvestForm({ record, hives, onSave, onClose }) {
   );
 }
 
+/* ── Colony event form ───────────────────────────────────────────────── */
+
+function EventForm({ record, hives, onSave, onClose }) {
+  const [form, setForm] = useState({
+    date: record?.date || today(),
+    hiveTag: record?.hiveTag || '',
+    type: record?.type || COLONY_EVENTS[0],
+    detail: record?.detail || '',
+  });
+  const [error, setError] = useState('');
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
+
+  const handleSave = () => {
+    if (!form.hiveTag) { setError('Please select a hive'); return; }
+    if (!form.date) { setError('Date is required'); return; }
+    onSave({ ...record, ...form });
+    onClose();
+  };
+
+  return (
+    <Modal open title={record ? 'Edit Event' : 'Log Colony Event'} onClose={onClose}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save event</Btn></>}>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Date *">
+            <Input type="date" value={form.date} onChange={set('date')} />
+          </FormField>
+          <FormField label="Hive *" hint={hives.length === 0 ? 'Add hives under Livestock → Bee' : undefined}>
+            <Select value={form.hiveTag} onChange={set('hiveTag')}>
+              <option value="">Select hive…</option>
+              {hives.map(h => (
+                <option key={h.id} value={h.tag}>{h.tag}{h.location ? ` — ${h.location}` : ''}</option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+        <FormField label="Event">
+          <Select value={form.type} onChange={set('type')}>
+            {COLONY_EVENTS.map(t => <option key={t}>{t}</option>)}
+          </Select>
+        </FormField>
+
+        {COLONY_LOSS_EVENTS.includes(form.type) && (
+          <AlertBox color="amber">
+            This marks the colony as gone. The hive stays in your records — update its status
+            under Livestock if the box is now empty.
+          </AlertBox>
+        )}
+
+        <FormField label="Detail"
+          hint={form.type === 'Requeened' ? 'e.g. new queen race, marking colour, source'
+            : form.type === 'Treated' ? 'e.g. product used and dose'
+            : undefined}>
+          <Textarea rows={2} placeholder="Optional detail…" value={form.detail} onChange={set('detail')} />
+        </FormField>
+
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────── */
 
 export default function Apiary() {
   const {
     livestock,
-    inspections, addInspection, updateInspection, removeInspection,
-    harvests,    addHarvest,    updateHarvest,    removeHarvest,
+    inspections,  addInspection,  updateInspection,  removeInspection,
+    harvests,     addHarvest,     updateHarvest,     removeHarvest,
+    colonyEvents, addColonyEvent, updateColonyEvent, removeColonyEvent,
   } = useData();
 
   const [tab, setTab] = useState('inspections');
@@ -266,29 +341,68 @@ export default function Apiary() {
     return inspections.filter(i => new Date(i.date).getTime() >= cutoff).length;
   }, [inspections, mountedAt]);
 
-  /* A hive needs attention if its most recent inspection flagged a problem. */
-  const needsAttention = useMemo(() => {
-    const latest = {};
+  const alerts = useMemo(() => inspections.filter(i => hasNotifiable(i.pests)), [inspections]);
+
+  /* Latest inspection per hive — drives both the stat card and the roll-up. */
+  const latestByHive = useMemo(() => {
+    const map = {};
     [...inspections]
       .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .forEach(i => { latest[i.hiveTag] = i; });
-    return Object.values(latest).filter(i =>
-      hasNotifiable(i.pests) ||
-      i.queenSeen === 'Not seen' ||
-      i.broodPattern === 'No brood' ||
-      i.stores === 'None — feed now'
-    ).length;
+      .forEach(i => { map[i.hiveTag] = i; });
+    return map;
   }, [inspections]);
 
-  const alerts = useMemo(() => inspections.filter(i => hasNotifiable(i.pests)), [inspections]);
+  const problem = (i) => !!i && (
+    hasNotifiable(i.pests) ||
+    i.queenSeen === 'Not seen' ||
+    i.broodPattern === 'No brood' ||
+    i.stores === 'None — feed now'
+  );
+
+  /* A hive needs attention if its most recent inspection flagged a problem. */
+  const needsAttention = useMemo(
+    () => Object.values(latestByHive).filter(problem).length,
+    [latestByHive]);
+
+  /* Group hives by their location — that field is effectively the apiary. */
+  const apiaries = useMemo(() => {
+    const map = {};
+    hives.forEach(h => {
+      const name = h.location?.trim() || 'Unassigned';
+      (map[name] ||= []).push(h);
+    });
+    const honeyPerHive = {};
+    harvests.filter(h => h.product === 'Honey')
+      .forEach(h => { honeyPerHive[h.hiveTag] = (honeyPerHive[h.hiveTag] || 0) + (h.quantity || 0); });
+
+    return Object.entries(map).map(([name, list]) => {
+      const tags = list.map(h => h.tag);
+      const honey = tags.reduce((s, t) => s + (honeyPerHive[t] || 0), 0);
+      const flagged = tags.filter(t => problem(latestByHive[t])).length;
+      const dates = tags.map(t => latestByHive[t]?.date).filter(Boolean).sort();
+      const lost = colonyEvents.filter(e => tags.includes(e.hiveTag) && COLONY_LOSS_EVENTS.includes(e.type)).length;
+      return {
+        name,
+        hives: list.length,
+        honey: Math.round(honey * 10) / 10,
+        flagged,
+        lost,
+        lastInspection: dates.length ? dates[dates.length - 1] : null,
+      };
+    }).sort((a, b) => b.hives - a.hives);
+  }, [hives, harvests, latestByHive, colonyEvents]);
 
   const TABS = [
     { key: 'inspections', label: `Inspections (${inspections.length})` },
     { key: 'harvests',    label: `Harvests (${harvests.length})` },
+    { key: 'events',      label: `Events (${colonyEvents.length})` },
+    { key: 'apiaries',    label: `Apiaries (${apiaries.length})` },
   ];
 
   const closeModal = () => setModal(null);
-  const addLabel = tab === 'inspections' ? 'Add inspection' : 'Log harvest';
+  const ADD_LABEL = { inspections: 'Add inspection', harvests: 'Log harvest', events: 'Log event', apiaries: 'Add inspection' };
+  const ADD_MODAL = { inspections: 'add-inspection', harvests: 'add-harvest', events: 'add-event', apiaries: 'add-inspection' };
+  const addLabel = ADD_LABEL[tab];
 
   return (
     <div className="flex flex-col gap-5 fade-in">
@@ -297,7 +411,7 @@ export default function Apiary() {
           <h2 className="text-xl font-extrabold text-slate-800">Apiary</h2>
           <p className="text-sm text-slate-400 mt-0.5">Hive inspections, disease checks and harvest records</p>
         </div>
-        <Btn onClick={() => setModal({ type: tab === 'inspections' ? 'add-inspection' : 'add-harvest' })}>
+        <Btn onClick={() => setModal({ type: ADD_MODAL[tab] })}>
           <Plus size={16} /> {addLabel}
         </Btn>
       </div>
@@ -311,7 +425,8 @@ export default function Apiary() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon="🐝" label="Hives" value={hives.length} sub={`${new Set(hives.map(h => h.location).filter(Boolean)).size} apiaries`} color="amber" />
+        <StatCard icon="🐝" label="Hives" value={hives.length}
+          sub={`${apiaries.length} apiar${apiaries.length === 1 ? 'y' : 'ies'}`} color="amber" />
         <StatCard icon="🔍" label="Inspections (30d)" value={recentCount} sub={`${inspections.length} all time`} color="blue" />
         <StatCard icon="🍯" label="Honey harvested" value={`${honeyKg.toFixed(1)} kg`} sub={`${harvests.length} harvests`} color="amber" />
         <StatCard icon="⚠️" label="Needs attention" value={needsAttention} sub="From latest inspection" color={needsAttention > 0 ? 'red' : 'green'} />
@@ -339,6 +454,92 @@ export default function Apiary() {
             <p className="text-sm font-medium">No hives yet</p>
             <p className="text-xs mt-1">Add them under Livestock → Bee, then inspections and harvests can be logged here.</p>
           </div>
+        ) : tab === 'apiaries' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  {['Apiary','Hives','Honey','Needs attention','Colonies lost','Last inspection'].map(h => (
+                    <th key={h} className="text-left px-3 py-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {apiaries.map(a => (
+                  <tr key={a.name} className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
+                    <td className="px-3 py-3.5 font-semibold text-slate-800">
+                      📍 {a.name}
+                      {a.name === 'Unassigned' && (
+                        <div className="text-xs text-slate-400 font-normal mt-0.5">Set a location on the hive to group it</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 font-bold text-slate-800">{a.hives}</td>
+                    <td className="px-3 py-3.5 text-slate-700 font-semibold">{a.honey} kg</td>
+                    <td className="px-3 py-3.5">
+                      {a.flagged > 0
+                        ? <span className="text-[11px] font-bold px-2 py-1 rounded-lg" style={{ background:'#fef2f2', color:'#b91c1c', border:'1px solid #fecaca' }}>{a.flagged} hive{a.flagged !== 1 ? 's' : ''}</span>
+                        : <span className="text-[11px] font-bold px-2 py-1 rounded-lg" style={{ background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0' }}>All clear</span>}
+                    </td>
+                    <td className="px-3 py-3.5 text-slate-600">{a.lost || <span className="text-slate-300">—</span>}</td>
+                    <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">
+                      {a.lastInspection ? fmtDate(a.lastInspection) : <span className="text-slate-300">Never</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : tab === 'events' ? (
+          colonyEvents.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-2">📋</div>
+              <p className="text-sm font-medium">No colony events logged yet</p>
+              <p className="text-xs mt-1">Track swarms, requeening, splits, absconding and losses here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    {['Date','Hive','Event','Detail',''].map(h => (
+                      <th key={h} className="text-left px-3 py-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {colonyEvents.map(e => (
+                    <tr key={e.id} className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap font-medium">{fmtDate(e.date)}</td>
+                      <td className="px-3 py-3.5">
+                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-mono font-bold">{e.hiveTag}</span>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-lg whitespace-nowrap"
+                          style={COLONY_LOSS_EVENTS.includes(e.type)
+                            ? { background:'#fef2f2', color:'#b91c1c', border:'1px solid #fecaca' }
+                            : { background:'#f8fafc', color:'#475569', border:'1px solid #e2e8f0' }}>
+                          <span>{EVENT_ICON[e.type] || '📌'}</span>{e.type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-slate-500 max-w-md truncate">{e.detail}</td>
+                      <td className="px-3 py-3.5">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setModal({ type: 'edit-event', record: e })}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => removeColonyEvent(e.id)}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : tab === 'inspections' ? (
           inspections.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
@@ -464,6 +665,12 @@ export default function Apiary() {
       )}
       {modal?.type === 'edit-harvest' && (
         <HarvestForm record={modal.record} hives={hives} onSave={updateHarvest} onClose={closeModal} />
+      )}
+      {modal?.type === 'add-event' && (
+        <EventForm hives={hives} onSave={addColonyEvent} onClose={closeModal} />
+      )}
+      {modal?.type === 'edit-event' && (
+        <EventForm record={modal.record} hives={hives} onSave={updateColonyEvent} onClose={closeModal} />
       )}
     </div>
   );

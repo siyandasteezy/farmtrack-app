@@ -129,7 +129,7 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 stagger">
         <StatCard icon="🐄" label="Total Livestock" value={total} sub={`${speciesCounts.length} species`} color="green" />
-        <StatCard icon="❤️" label="Healthy Animals" value={healthy} sub={`${Math.round(healthy/total*100)}% of herd`} color="green" />
+        <StatCard icon="❤️" label="Healthy Animals" value={healthy} sub={`${total ? Math.round(healthy / total * 100) : 0}% of herd`} color="green" />
         <StatCard icon="⚠️" label="Sensor Alerts" value={alerts.length} sub="Require attention" color={alerts.length > 2 ? 'red' : 'amber'} />
         <StatCard icon="📅" label="Upcoming Vet" value={upcoming} sub="Scheduled visits" color="blue" />
         <StatCard icon="🌡️" label="Avg Temp" value="24°C" sub="Barn 1 · Normal" color="blue" />

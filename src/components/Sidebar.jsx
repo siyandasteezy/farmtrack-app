@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Beef, HeartPulse, Activity,
-  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin, Map,
+  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin, Map, Hexagon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/dashboard',   label: 'Dashboard',       Icon: LayoutDashboard },
   { to: '/livestock',   label: 'Livestock',        Icon: Beef },
   { to: '/health',      label: 'Health & Vet',     Icon: HeartPulse },
+  { to: '/apiary',      label: 'Apiary',           Icon: Hexagon },
   { to: '/sensors',     label: 'Sensors',          Icon: Activity },
   { to: '/feed',        label: 'Feed & Nutrition', Icon: Wheat },
   { to: '/regulations', label: 'Regulations',      Icon: Scale },

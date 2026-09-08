@@ -34,6 +34,31 @@ export const QUEEN_STATUSES = ['Queenright', 'Virgin queen', 'Requeening', 'Quee
    year the queen was raised. Mnemonic: "Will You Rear Good Bees". */
 export const QUEEN_COLOURS = ['Unmarked', 'White', 'Yellow', 'Red', 'Green', 'Blue'];
 
+/* Hive inspection vocabulary */
+export const BROOD_PATTERNS = ['Good / solid', 'Spotty', 'Drone-heavy', 'No brood'];
+export const STORES_LEVELS  = ['Ample', 'Adequate', 'Low', 'None — feed now'];
+export const TEMPERAMENTS   = ['Calm', 'Normal', 'Defensive', 'Very defensive'];
+
+/* Pests & diseases seen in South African apiaries. AFB is a notifiable
+   disease here under the Control Measures relating to Honey-bees
+   (R.858 of 2013), and capensis laying workers are an SA-specific problem. */
+export const HIVE_PESTS = [
+  'None seen',
+  'Varroa',
+  'Small hive beetle',
+  'Wax moth',
+  'Chalkbrood',
+  'Nosema',
+  'Capensis laying workers',
+  'American foulbrood (AFB)',
+  'European foulbrood (EFB)',
+];
+
+/* Diseases that must be reported to DALRRD when found. */
+export const NOTIFIABLE_PESTS = ['American foulbrood (AFB)'];
+
+export const HIVE_PRODUCTS = ['Honey', 'Beeswax', 'Propolis', 'Pollen', 'Royal jelly'];
+
 export function queenColourForYear(year) {
   const digit = Number(String(year).slice(-1));
   if (Number.isNaN(digit)) return 'Unmarked';

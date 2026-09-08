@@ -69,7 +69,7 @@ function HealthForm({ health, livestock, onSave, onClose }) {
               {STATUSES.map(s => <option key={s}>{s}</option>)}
             </Select>
           </FormField>
-          <FormField label="Cost ($)">
+          <FormField label="Cost (R)">
             <Input type="number" placeholder="0" value={form.cost} onChange={set('cost')} />
           </FormField>
         </div>
@@ -122,7 +122,7 @@ export default function Health() {
         <StatCard icon="✅" label="Completed" value={health.filter(h=>h.status==='Completed').length} color="green" />
         <StatCard icon="🔄" label="Ongoing" value={health.filter(h=>h.status==='Ongoing').length} color="amber" />
         <StatCard icon="📅" label="Scheduled" value={health.filter(h=>h.status==='Scheduled').length} color="blue" />
-        <StatCard icon="💰" label="Total Vet Cost" value={`$${totalCost}`} color="green" />
+        <StatCard icon="💰" label="Total Vet Cost" value={`R${totalCost}`} color="green" />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-5"
@@ -175,7 +175,7 @@ export default function Health() {
                     </td>
                     <td className="px-3 py-3.5 text-slate-600">{h.vet}</td>
                     <td className="px-3 py-3.5 text-slate-500 max-w-xs truncate">{h.notes}</td>
-                    <td className="px-3 py-3.5 font-bold text-slate-800">${h.cost}</td>
+                    <td className="px-3 py-3.5 font-bold text-slate-800">R{h.cost}</td>
                     <td className="px-3 py-3.5"><StatusBadge status={h.status} /></td>
                     <td className="px-3 py-3.5">
                       <div className="flex items-center gap-1">

@@ -74,7 +74,7 @@ export default function Reports() {
     { metric: 'Poultry (birds)', value: 550, change: '-20', good: false },
     { metric: 'Eggs / day (est.)', value: '~280', change: '+15', good: true },
     { metric: 'Milk / day (L)', value: '~72', change: '+4', good: true },
-    { metric: 'Vet spend (YTD)', value: `$${totalCost}`, change: '', good: null },
+    { metric: 'Vet spend (YTD)', value: `R${totalCost}`, change: '', good: null },
   ];
 
   return (
@@ -92,7 +92,7 @@ export default function Reports() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon="📈" label="Herd growth (YTD)" value="+12%" sub="3 new births" color="green" />
         <StatCard icon="🥛" label="Milk yield avg/day" value="24.2 L" sub="Per dairy cow" color="blue" />
-        <StatCard icon="💊" label="Vet spend (YTD)" value={`$${totalCost}`} sub={`${health.length} events`} color="amber" />
+        <StatCard icon="💊" label="Vet spend (YTD)" value={`R${totalCost}`} sub={`${health.length} events`} color="amber" />
         <StatCard icon="⚖️" label="Avg weight gain" value="1.2 kg/wk" sub="Beef cattle" color="green" />
       </div>
 
@@ -125,7 +125,7 @@ export default function Reports() {
               <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={10} iconType="circle"
                 formatter={(v) => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
               <Tooltip contentStyle={{ background:'#1e293b', border:'none', borderRadius:10, color:'#f1f5f9' }}
-                formatter={(v) => [`$${v}`, 'Cost']} />
+                formatter={(v) => [`R${v}`, 'Cost']} />
             </PieChart>
           </ResponsiveContainer>
         </div>

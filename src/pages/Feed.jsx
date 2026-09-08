@@ -80,7 +80,7 @@ function FeedTypeModal({ feed, livestock, onSave, onClose }) {
               {FEED_UNITS.map(u => <option key={u}>{u}</option>)}
             </Select>
           </FormField>
-          <FormField label="Cost per unit ($)">
+          <FormField label="Cost per unit (R)">
             <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.costPerKg} onChange={set('costPerKg')} />
           </FormField>
         </div>
@@ -166,7 +166,7 @@ export default function Feed() {
         <StatCard icon="🌾" label="Feed types" value={feed.length} color="green" />
         <StatCard icon="⚠️" label="Low stock (<20d)" value={lowFeed.length} color={lowFeed.length > 0 ? 'red' : 'green'} />
         <StatCard icon="📦" label="Total stock" value={`${totalStock.toLocaleString()} kg`} color="blue" />
-        <StatCard icon="💰" label="Daily feed cost" value={`$${feed.reduce((s,f)=>s+(f.dailyPerHead*f.costPerKg),0).toFixed(0)}`} color="amber" />
+        <StatCard icon="💰" label="Daily feed cost" value={`R${feed.reduce((s,f)=>s+(f.dailyPerHead*f.costPerKg),0).toFixed(0)}`} color="amber" />
       </div>
 
       {/* Low stock alerts */}
@@ -230,7 +230,7 @@ export default function Feed() {
                       </div>
                       <div className="flex justify-between text-xs text-slate-400 mt-1.5">
                         <span className="font-medium">{f.stock} {f.unit} in stock</span>
-                        <span>${f.costPerKg.toFixed(2)}/{f.unit}</span>
+                        <span>R{f.costPerKg.toFixed(2)}/{f.unit}</span>
                       </div>
                     </div>
                   );
@@ -257,7 +257,7 @@ export default function Feed() {
                         <td className="py-3 px-3 font-medium text-slate-800">{SPECIES_META[f.species]?.emoji} {f.species}</td>
                         <td className="py-3 px-3 text-slate-500">{f.type}</td>
                         <td className="py-3 px-3 font-bold text-slate-800">{f.dailyPerHead} {f.unit}</td>
-                        <td className="py-3 px-3 text-slate-600">${f.costPerKg.toFixed(2)}</td>
+                        <td className="py-3 px-3 text-slate-600">R{f.costPerKg.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -51,7 +51,47 @@ const card = {
 };
 
 export default function Reports() {
-  const { livestock, health } = useData();
+  const { livestock, health, harvests } = useData();
+
+  /* ── Apiary output ──────────────────────────────────────────── */
+  const honeyHarvests = useMemo(() => harvests.filter(h => h.product === 'Honey'), [harvests]);
+  const honeyKg = useMemo(
+    () => honeyHarvests.reduce((s, h) => s + (h.quantity || 0), 0),
+    [honeyHarvests]);
+
+  const honeyByMonth = useMemo(() => {
+    const map = {};
+    honeyHarvests.forEach(h => {
+      const d = new Date(h.date);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = (map[key] || 0) + (h.quantity || 0);
+    });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([key, kg]) => {
+        const [y, m] = key.split('-');
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-ZA', { month: 'short' });
+        return { month: `${label} ${y.slice(2)}`, kg: Math.round(kg * 10) / 10 };
+      });
+  }, [honeyHarvests]);
+
+  const honeyByHive = useMemo(() => {
+    const map = {};
+    honeyHarvests.forEach(h => { map[h.hiveTag] = (map[h.hiveTag] || 0) + (h.quantity || 0); });
+    return Object.entries(map)
+      .map(([hive, kg]) => ({ hive, kg: Math.round(kg * 10) / 10 }))
+      .sort((a, b) => b.kg - a.kg);
+  }, [honeyHarvests]);
+
+  const byProduct = useMemo(() => {
+    const map = {};
+    harvests.forEach(h => { map[h.product] = (map[h.product] || 0) + (h.quantity || 0); });
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value: Math.round(value * 10) / 10 }))
+      .sort((a, b) => b.value - a.value);
+  }, [harvests]);
 
   const speciesCounts = useMemo(() => {
     const map = {};
@@ -75,6 +115,7 @@ export default function Reports() {
     { metric: 'Eggs / day (est.)', value: '~280', change: '+15', good: true },
     { metric: 'Milk / day (L)', value: '~72', change: '+4', good: true },
     { metric: 'Vet spend (YTD)', value: `R${totalCost}`, change: '', good: null },
+    ...(harvests.length ? [{ metric: 'Honey harvested', value: `${honeyKg.toFixed(1)} kg`, change: '', good: null }] : []),
   ];
 
   return (
@@ -89,11 +130,15 @@ export default function Reports() {
         </Btn>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 gap-4 ${harvests.length ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-4'}`}>
         <StatCard icon="📈" label="Herd growth (YTD)" value="+12%" sub="3 new births" color="green" />
         <StatCard icon="🥛" label="Milk yield avg/day" value="24.2 L" sub="Per dairy cow" color="blue" />
         <StatCard icon="💊" label="Vet spend (YTD)" value={`R${totalCost}`} sub={`${health.length} events`} color="amber" />
         <StatCard icon="⚖️" label="Avg weight gain" value="1.2 kg/wk" sub="Beef cattle" color="green" />
+        {harvests.length > 0 && (
+          <StatCard icon="🍯" label="Honey harvested" value={`${honeyKg.toFixed(1)} kg`}
+            sub={`${honeyHarvests.length} harvest${honeyHarvests.length !== 1 ? 's' : ''}`} color="amber" />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -199,6 +244,71 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {/* ── Apiary output — only shown once there are harvests ───────── */}
+      {harvests.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Honey per month */}
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Honey Production (kg)</h3>
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={honeyByMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} unit=" kg" />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="kg" fill="#f59e0b" radius={[4,4,0,0]} name="Honey" unit=" kg" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Output by hive + product */}
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Honey by Hive</h3>
+            {honeyByHive.length === 0 ? (
+              <p className="text-sm text-slate-400">No honey harvests yet — other hive products are listed below.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {honeyByHive.slice(0, 6).map((h, i) => {
+                  const top = honeyByHive[0].kg || 1;
+                  const pct = Math.round((h.kg / top) * 100);
+                  return (
+                    <div key={h.hive}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-600 font-medium font-mono">{h.hive}</span>
+                        <span className="font-bold text-slate-800">{h.kg} kg</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: COLORS[i % COLORS.length] }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mt-5 mb-3">All Hive Products</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="text-left py-2.5 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">Product</th>
+                    <th className="text-left py-2.5 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byProduct.map(p => (
+                    <tr key={p.name} className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2.5 px-3 text-slate-600">{p.name}</td>
+                      <td className="py-2.5 px-3 font-bold text-slate-800">{p.value} kg</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -136,13 +136,24 @@ function AnimalForm({ animal, existingAnimals, defaultSpecies = 'Cattle', onSave
               {Object.keys(SPECIES_META).map(s => <option key={s}>{s}</option>)}
             </Select>
           </FormField>
-          <FormField label={bee ? 'Queen race *' : 'Breed *'}>
+          <FormField label={bee ? 'Queen race *' : 'Breed *'}
+            hint={bee ? 'scutellata across most of SA; capensis in the southern/Western Cape' : undefined}>
             <Select value={form.breed} onChange={set('breed')}>
               <option value="">{bee ? 'Select race…' : 'Select breed…'}</option>
               {breeds.map(b => <option key={b}>{b}</option>)}
             </Select>
           </FormField>
         </div>
+        {bee && /capensis/i.test(form.breed) && (
+          <div className="rounded-xl px-4 py-3 text-xs leading-relaxed"
+            style={{ background: '#fff7ed', border: '1px solid #fdba74', color: '#9a3412' }}>
+            ⚠️ <strong>Cape bees stay in the Cape.</strong> Moving <em>capensis</em> colonies into
+            <em> scutellata</em> areas triggers laying-worker parasitism that can wipe out host
+            colonies. Bee movement is regulated under the Agricultural Pests Act — check before
+            relocating this hive.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <FormField label={bee ? 'Established' : 'Date of Birth'}
             hint={bee ? 'When the colony was hived' : undefined}>

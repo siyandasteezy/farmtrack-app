@@ -1,15 +1,23 @@
+/* Breed lists lead with South African / indigenous breeds, followed by the
+   international breeds also farmed here. */
 export const SPECIES_META = {
-  Cattle:  { emoji: '🐄', breeds: ['Angus','Holstein','Hereford','Jersey','Limousin','Simmental','Charolais','Brahman','Shorthorn','Highland'] },
-  Sheep:   { emoji: '🐑', breeds: ['Merino','Suffolk','Dorper','Texel','Romney','Corriedale','Damara','Hampshire','Ile-de-France'] },
-  Goat:    { emoji: '🐐', breeds: ['Boer','Saanen','Nubian','Kiko','Angora','Alpine','Toggenburg','LaMancha','Pygmy'] },
-  Pig:     { emoji: '🐷', breeds: ['Large White','Landrace','Duroc','Berkshire','Pietrain','Hampshire','Tamworth','Saddleback','Mangalitsa'] },
-  Horse:   { emoji: '🐴', breeds: ['Thoroughbred','Clydesdale','Quarter Horse','Arabian','Shire','Friesian','Warmblood','Appaloosa','Standardbred'] },
-  Poultry: { emoji: '🐔', breeds: ['Broiler','Leghorn','Rhode Island Red','Sussex','Plymouth Rock','Cornish Cross','ISA Brown','Orpington'] },
-  Rabbit:  { emoji: '🐇', breeds: ['New Zealand White','California','Rex','Flemish Giant','Dutch','Angora','Mini Lop','Chinchilla'] },
+  Cattle:  { emoji: '🐄', breeds: ['Nguni','Bonsmara','Afrikaner','Drakensberger','Brahman','Angus','Hereford','Simmental','Charolais','Limousin','Holstein','Jersey','Shorthorn'] },
+  Sheep:   { emoji: '🐑', breeds: ['Dorper','Meatmaster','Dohne Merino','Van Rooy','Blackhead Persian','Afrino','Damara','Karakul','Merino','Suffolk','Texel','Ile-de-France'] },
+  Goat:    { emoji: '🐐', breeds: ['Boer','Kalahari Red','Savanna','Indigenous Veld Goat','Angora','Saanen','Nubian','Toggenburg','Alpine'] },
+  Pig:     { emoji: '🐷', breeds: ['Kolbroek','Large White','Landrace','Duroc','Berkshire','Pietrain','Hampshire','Tamworth'] },
+  Horse:   { emoji: '🐴', breeds: ['SA Boerperd','Nooitgedacht','Basuto Pony','Thoroughbred','Arabian','Friesian','Quarter Horse','Warmblood','Clydesdale'] },
+  Poultry: { emoji: '🐔', breeds: ['Potchefstroom Koekoek','Boschveld','Venda','Ovambo','Naked Neck','Broiler','Leghorn','Rhode Island Red','Sussex','Orpington'] },
+  Rabbit:  { emoji: '🐇', breeds: ['New Zealand White','California','Rex','Flemish Giant','Dutch','Angora','Chinchilla'] },
   Alpaca:  { emoji: '🦙', breeds: ['Huacaya','Suri'] },
-  Duck:    { emoji: '🦆', breeds: ['Pekin','Khaki Campbell','Muscovy','Indian Runner','Rouen','Aylesbury','Cayuga'] },
-  Deer:    { emoji: '🦌', breeds: ['Red Deer','Fallow Deer','White-tailed','Roe Deer','Sika','Wapiti'] },
-  Bee:     { emoji: '🐝', breeds: ['Italian','Carniolan','Buckfast','Russian','Caucasian'] },
+  Duck:    { emoji: '🦆', breeds: ['Pekin','Muscovy','Khaki Campbell','Indian Runner','Rouen','Aylesbury'] },
+  /* Kept as true deer (Cervidae) — both are farmed in SA. SA game species
+     (springbok, blesbok, kudu, impala) are antelope, so they belong in a
+     separate "Game" species rather than mislabelled here. */
+  Deer:    { emoji: '🦌', breeds: ['Red Deer','Fallow Deer','White-tailed','Sika','Wapiti'] },
+  /* Only the two indigenous subspecies (and their hybrid) are kept in SA —
+     honey bees are controlled goods under the Agricultural Pests Act 36/1983,
+     so European races such as Italian or Carniolan are not farmed here. */
+  Bee:     { emoji: '🐝', breeds: ['African (A. m. scutellata)','Cape (A. m. capensis)','Scutellata × Capensis hybrid','Unknown / mixed'] },
 };
 
 /* ── Bees ──────────────────────────────────────────────────────────────

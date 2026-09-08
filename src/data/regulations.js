@@ -18,6 +18,19 @@ export const REGULATIONS = [
     ]
   },
   {
+    /* South Africa: Control Measures relating to Honey-bees, G.N. R.858 of
+       15 November 2013, made under the Agricultural Pests Act 36 of 1983. */
+    category: 'Beekeeping & Apiaries', icon: '🐝',
+    items: [
+      { title:'Beekeeper Registration (every 24 months)', body:'Anyone who keeps, owns or is in charge of a honey-bee colony — commercial, hobbyist or bee-removal operator — must register with DALRRD and renew every 24 months. Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983.', tag:'Mandatory', severity:'red' },
+      { title:'Beehive Marking', body:'Every beehive must be marked clearly and legibly with the registration number allocated to the beekeeper. Unmarked hives are non-compliant.', tag:'Mandatory', severity:'red' },
+      { title:'American Foulbrood — Notifiable', body:'American foulbrood (AFB) is a declared notifiable disease. Beekeepers are obliged to manage or eradicate it, report findings to DALRRD, and may be required to destroy infected colonies. Infected colonies and their equipment may not be moved.', tag:'Mandatory', severity:'red' },
+      { title:'Cape Bee (capensis) Control', body:'Removal and movement of capensis-infected colonies is prohibited, and infected colonies are subject to destruction. Moving Cape bees (A. m. capensis) into A. m. scutellata areas triggers laying-worker social parasitism that can collapse host colonies.', tag:'Mandatory', severity:'red' },
+      { title:'Colony Inspection & Record-Keeping', body:'Beekeepers must inspect every colony in their beehives and keep records as prescribed under the Control Measures — inspection dates, disease findings and actions taken.', tag:'Mandatory', severity:'amber' },
+      { title:'Import of Bees, Honey & Used Equipment', body:'Honey, beeswax and used apiary equipment are controlled goods. A DALRRD import permit is required under section 3(1) of the Agricultural Pests Act 36 of 1983 before importing any of them.', tag:'Mandatory', severity:'amber' },
+    ]
+  },
+  {
     category: 'Environmental', icon: '🌿',
     items: [
       { title:'Manure & Slurry Management', body:'Manure stores must be at least 10 m from watercourses. Closed season spreading restrictions apply November–January. Nutrient Management Plans required for larger farms.', tag:'Mandatory', severity:'amber' },

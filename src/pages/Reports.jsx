@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { useData } from '../context/DataContext';
@@ -9,21 +9,6 @@ import { StatCard } from '../components/StatCard';
 import { Btn } from '../components/FormField';
 import { Printer } from 'lucide-react';
 
-const MONTHS = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
-const EVENTS = [
-  { month:'Sep', vaccinations:2, treatments:1, births:0 },
-  { month:'Oct', vaccinations:3, treatments:0, births:1 },
-  { month:'Nov', vaccinations:1, treatments:2, births:0 },
-  { month:'Dec', vaccinations:0, treatments:1, births:2 },
-  { month:'Jan', vaccinations:4, treatments:0, births:0 },
-  { month:'Feb', vaccinations:2, treatments:1, births:0 },
-  { month:'Mar', vaccinations:3, treatments:1, births:1 },
-];
-const WEIGHT_DATA = MONTHS.map((m, i) => ({
-  month: m,
-  bessie: 562 + i * 3,
-  bruno:  598 + i * 3.5,
-}));
 const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6','#8b5cf6'];
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -107,16 +92,57 @@ export default function Reports() {
 
   const totalCost = health.reduce((s, h) => s + h.cost, 0);
 
-  const PRODUCTION = [
-    { metric: 'Cattle head', value: livestock.filter(a=>a.species==='Cattle').length, change: '+2', good: true },
-    { metric: 'Sheep head', value: livestock.filter(a=>a.species==='Sheep').length, change: '0', good: null },
-    { metric: 'Pig head', value: livestock.filter(a=>a.species==='Pig').length, change: '+1', good: true },
-    { metric: 'Poultry (birds)', value: 550, change: '-20', good: false },
-    { metric: 'Eggs / day (est.)', value: '~280', change: '+15', good: true },
-    { metric: 'Milk / day (L)', value: '~72', change: '+4', good: true },
-    { metric: 'Vet spend (YTD)', value: `R${totalCost}`, change: '', good: null },
-    ...(harvests.length ? [{ metric: 'Honey harvested', value: `${honeyKg.toFixed(1)} kg`, change: '', good: null }] : []),
-  ];
+  /* Health events per month, derived from the records rather than a fixed
+     seven-month sample. */
+  const monthlyHealth = useMemo(() => {
+    const map = {};
+    health.forEach(h => {
+      const d = new Date(h.date);
+      if (Number.isNaN(d.getTime())) return;
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const [y, m] = k.split('-');
+      map[k] ||= {
+        key: k,
+        month: `${new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-ZA', { month: 'short' })} ${y.slice(2)}`,
+        vaccinations: 0, treatments: 0, checkups: 0,
+      };
+      if (h.type === 'Vaccination') map[k].vaccinations += 1;
+      else if (h.type === 'Treatment') map[k].treatments += 1;
+      else map[k].checkups += 1;
+    });
+    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
+  }, [health]);
+
+  /* Head count per species the farm actually keeps, rather than a fixed list
+     with invented poultry, egg and milk figures nothing in the app records. */
+  const PRODUCTION = useMemo(() => {
+    const perSpecies = {};
+    livestock.forEach(a => { perSpecies[a.species] = (perSpecies[a.species] || 0) + 1; });
+
+    const rows = Object.entries(perSpecies)
+      .sort((a, b) => b[1] - a[1])
+      .map(([species, count]) => ({
+        metric: species === 'Bee' ? 'Hives' : `${species} head`,
+        value: count,
+      }));
+
+    if (health.length) rows.push({ metric: 'Vet spend (YTD)', value: `R${totalCost}` });
+    // Harvest totals are not repeated here — the All Hive Products table
+    // below already carries them, per product.
+    return rows;
+  }, [livestock, health, totalCost]);
+
+  /* Weight is only meaningful for animals that actually have one recorded. */
+  const weighed = useMemo(() => livestock.filter(a => Number(a.weight) > 0), [livestock]);
+  const avgWeightBySpecies = useMemo(() => {
+    const map = {};
+    weighed.forEach(a => {
+      map[a.species] ||= { name: a.species, total: 0, n: 0 };
+      map[a.species].total += Number(a.weight);
+      map[a.species].n += 1;
+    });
+    return Object.values(map).map(x => ({ name: x.name, value: Math.round(x.total / x.n) }));
+  }, [weighed]);
 
   return (
     <div className="flex flex-col gap-5 fade-in">
@@ -130,68 +156,87 @@ export default function Reports() {
         </Btn>
       </div>
 
-      <div className={`grid grid-cols-2 gap-4 ${harvests.length ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-4'}`}>
-        <StatCard icon="📈" label="Herd growth (YTD)" value="+12%" sub="3 new births" color="green" />
-        <StatCard icon="🥛" label="Milk yield avg/day" value="24.2 L" sub="Per dairy cow" color="blue" />
-        <StatCard icon="💊" label="Vet spend (YTD)" value={`R${totalCost}`} sub={`${health.length} events`} color="amber" />
-        <StatCard icon="⚖️" label="Avg weight gain" value="1.2 kg/wk" sub="Beef cattle" color="green" />
+      {/* Each card is backed by real records — nothing is shown on a farm
+          that hasn't recorded it yet. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon="🐄" label="Total livestock" value={livestock.length}
+          sub={`${speciesCounts.length} species`} color="green" />
+        {weighed.length > 0 && (
+          <StatCard icon="⚖️" label="Average weight"
+            value={`${Math.round(weighed.reduce((s, a) => s + Number(a.weight), 0) / weighed.length)} kg`}
+            sub={`Across ${weighed.length} weighed`} color="green" />
+        )}
+        {health.length > 0 && (
+          <StatCard icon="💊" label="Vet spend (YTD)" value={`R${totalCost}`}
+            sub={`${health.length} event${health.length === 1 ? '' : 's'}`} color="amber" />
+        )}
         {harvests.length > 0 && (
           <StatCard icon="🍯" label="Honey harvested" value={`${honeyKg.toFixed(1)} kg`}
             sub={`${honeyHarvests.length} harvest${honeyHarvests.length !== 1 ? 's' : ''}`} color="amber" />
         )}
       </div>
 
+      {(monthlyHealth.length > 0 || costByType.length > 0) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Monthly events */}
-        <div style={card}>
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Monthly Health Events</h3>
-          <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={EVENTS}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} iconType="circle" formatter={v => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
-              <Bar dataKey="vaccinations" fill="#3b82f6" radius={[4,4,0,0]} name="Vaccinations" />
-              <Bar dataKey="treatments"   fill="#f59e0b" radius={[4,4,0,0]} name="Treatments" />
-              <Bar dataKey="births"       fill="#22c55e" radius={[4,4,0,0]} name="Births" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Health events per month, from the records themselves */}
+        {monthlyHealth.length > 0 && (
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Monthly Health Events</h3>
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={monthlyHealth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend iconSize={8} iconType="circle" formatter={v => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
+                <Bar dataKey="vaccinations" fill="#3b82f6" radius={[4,4,0,0]} name="Vaccinations" />
+                <Bar dataKey="treatments"   fill="#f59e0b" radius={[4,4,0,0]} name="Treatments" />
+                <Bar dataKey="checkups"     fill="#22c55e" radius={[4,4,0,0]} name="Check-ups" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {/* Vet costs pie */}
-        <div style={card}>
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Vet Costs by Type</h3>
-          <ResponsiveContainer width="100%" height={210}>
-            <PieChart>
-              <Pie data={costByType} dataKey="value" nameKey="name" cx="40%" cy="50%" outerRadius={80} innerRadius={28} paddingAngle={3}>
-                {costByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={10} iconType="circle"
-                formatter={(v) => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
-              <Tooltip contentStyle={{ background:'#1e293b', border:'none', borderRadius:10, color:'#f1f5f9' }}
-                formatter={(v) => [`R${v}`, 'Cost']} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        {costByType.length > 0 && (
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Vet Costs by Type</h3>
+            <ResponsiveContainer width="100%" height={210}>
+              <PieChart>
+                <Pie data={costByType} dataKey="value" nameKey="name" cx="40%" cy="50%" outerRadius={80} innerRadius={28} paddingAngle={3}>
+                  {costByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={10} iconType="circle"
+                  formatter={(v) => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
+                <Tooltip contentStyle={{ background:'#1e293b', border:'none', borderRadius:10, color:'#f1f5f9' }}
+                  formatter={(v) => [`R${v}`, 'Cost']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Weight trends */}
-        <div style={card}>
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Weight Trends — Cattle (kg)</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={WEIGHT_DATA}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} unit=" kg" domain={['auto','auto']} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} iconType="circle" formatter={v => <span style={{fontSize:11,color:'#64748b'}}>{v}</span>} />
-              <Line type="monotone" dataKey="bessie" stroke="#22c55e" strokeWidth={2.5} dot={{ r:3, fill:'#22c55e', strokeWidth:0 }} name="Bessie (CT-001)" />
-              <Line type="monotone" dataKey="bruno"  stroke="#3b82f6" strokeWidth={2.5} dot={{ r:3, fill:'#3b82f6', strokeWidth:0 }} name="Bruno (CT-002)" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Average weight per species. A weight trend over time would need
+            repeated weigh-ins, which the app doesn't record — only the
+            animal's current weight — so this shows what is actually known. */}
+        {avgWeightBySpecies.length > 0 && (
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Average Weight by Species (kg)</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={avgWeightBySpecies} barSize={44}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} unit=" kg" />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" radius={[8,8,0,0]} name="Average weight" unit=" kg">
+                  {avgWeightBySpecies.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {/* Production summary */}
         <div style={card}>
@@ -201,8 +246,9 @@ export default function Reports() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
                   <th className="text-left py-2.5 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">Metric</th>
+                  {/* No "vs last month" column: nothing records a monthly
+                      snapshot, so every row would read "—". */}
                   <th className="text-left py-2.5 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">Value</th>
-                  <th className="text-left py-2.5 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">vs Last Month</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,14 +256,6 @@ export default function Reports() {
                   <tr key={row.metric} className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
                     <td className="py-2.5 px-3 text-slate-600">{row.metric}</td>
                     <td className="py-2.5 px-3 font-bold text-slate-800">{row.value}</td>
-                    <td className="py-2.5 px-3">
-                      {row.change ? (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{
-                          background: row.good === true ? '#dcfce7' : row.good === false ? '#fee2e2' : '#f1f5f9',
-                          color: row.good === true ? '#15803d' : row.good === false ? '#b91c1c' : '#475569',
-                        }}>{row.change}</span>
-                      ) : '—'}
-                    </td>
                   </tr>
                 ))}
               </tbody>

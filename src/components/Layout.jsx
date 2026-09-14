@@ -54,12 +54,10 @@ export function Layout() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
-            {/* Weather */}
-            <div className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold"
-              style={{ background: '#fef9c3', color: '#92400e' }}>
-              <Sun size={14} />
-              <span>24°C · Sunny</span>
-            </div>
+            {/* A weather widget belongs here, but it needs a real forecast
+                source keyed to the farm's coordinates. A fixed "24°C · Sunny"
+                read as live data while being invented, so it is gone until
+                there is something real behind it. */}
 
             {/* Notifications */}
             <button className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all">

@@ -11,19 +11,11 @@ import { AlertBox } from '../components/AlertBox';
 
 const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6','#8b5cf6'];
 
-const MONTHLY = [
-  { month:'Sep', vaccinations:2, treatments:1, births:0 },
-  { month:'Oct', vaccinations:3, treatments:0, births:1 },
-  { month:'Nov', vaccinations:1, treatments:2, births:0 },
-  { month:'Dec', vaccinations:0, treatments:1, births:2 },
-  { month:'Jan', vaccinations:4, treatments:0, births:0 },
-  { month:'Feb', vaccinations:2, treatments:1, births:0 },
-  { month:'Mar', vaccinations:3, treatments:1, births:1 },
-];
-
-const TEMP_DATA = [19,18,17,17,18,20,22,24,25,26,25,24].map((v,i) => ({
-  hour: `${i*2}:00`, barn: v, henHouse: v + 2.5,
-}));
+const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const monthLabel = (key) => {
+  const [y, m] = key.split('-');
+  return `${new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-ZA', { month: 'short' })} ${y.slice(2)}`;
+};
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -55,13 +47,58 @@ function SectionHeader({ title, action }) {
 }
 
 export default function Dashboard() {
-  const { livestock, health, sensors } = useData();
+  const { livestock, health, sensors, manualReadings, harvests } = useData();
   const { user } = useAuth();
 
   const healthy  = livestock.filter(a => a.status === 'Healthy').length;
   const total    = livestock.length;
   const alerts   = sensors.filter(s => s.status !== 'normal');
   const upcoming = health.filter(h => h.status === 'Scheduled').length;
+
+  /* Temperature comes from the farm's own sensors — no sensors, no reading. */
+  const tempSensors = useMemo(() => sensors.filter(s => s.unit === '°C'), [sensors]);
+  const avgTemp = useMemo(() => {
+    if (!tempSensors.length) return null;
+    const sum = tempSensors.reduce((s, x) => s + (Number(x.value) || 0), 0);
+    return Math.round((sum / tempSensors.length) * 10) / 10;
+  }, [tempSensors]);
+
+  /* Honey actually harvested, rather than a milk figure nothing records. */
+  const honeyKg = useMemo(
+    () => harvests.filter(h => h.product === 'Honey').reduce((s, h) => s + (h.quantity || 0), 0),
+    [harvests]);
+
+  /* Health events by month, from the records themselves. */
+  const monthlyHealth = useMemo(() => {
+    const map = {};
+    health.forEach(h => {
+      const d = new Date(h.date);
+      if (Number.isNaN(d.getTime())) return;
+      const k = monthKey(d);
+      map[k] ||= { month: monthLabel(k), key: k, vaccinations: 0, treatments: 0, checkups: 0 };
+      if (h.type === 'Vaccination') map[k].vaccinations += 1;
+      else if (h.type === 'Treatment') map[k].treatments += 1;
+      else map[k].checkups += 1;
+    });
+    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
+  }, [health]);
+
+  /* Logged readings for temperature sensors, oldest first, one line each. */
+  const tempTrend = useMemo(() => {
+    const names = new Set(tempSensors.map(s => s.name));
+    const rows = manualReadings
+      .filter(r => names.has(r.sensorName))
+      .slice()
+      .sort((a, b) => new Date(a.loggedAt) - new Date(b.loggedAt));
+    return rows.map(r => ({
+      t: new Date(r.loggedAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' }),
+      [r.sensorName]: r.value,
+    }));
+  }, [manualReadings, tempSensors]);
+
+  const tempSeries = useMemo(
+    () => [...new Set(tempTrend.flatMap(p => Object.keys(p).filter(k => k !== 't')))],
+    [tempTrend]);
 
   const speciesCounts = useMemo(() => {
     const map = {};
@@ -132,11 +169,19 @@ export default function Dashboard() {
         <StatCard icon="❤️" label="Healthy Animals" value={healthy} sub={`${total ? Math.round(healthy / total * 100) : 0}% of herd`} color="green" />
         <StatCard icon="⚠️" label="Sensor Alerts" value={alerts.length} sub="Require attention" color={alerts.length > 2 ? 'red' : 'amber'} />
         <StatCard icon="📅" label="Upcoming Vet" value={upcoming} sub="Scheduled visits" color="blue" />
-        <StatCard icon="🌡️" label="Avg Temp" value="24°C" sub="Barn 1 · Normal" color="blue" />
-        <StatCard icon="🥛" label="Milk Yield" value="24.2 L" sub="Per cow / day" color="green" />
+        {/* Only shown when the farm actually has something behind them. */}
+        {avgTemp !== null && (
+          <StatCard icon="🌡️" label="Avg Temp" value={`${avgTemp}°C`}
+            sub={`Across ${tempSensors.length} sensor${tempSensors.length === 1 ? '' : 's'}`} color="blue" />
+        )}
+        {honeyKg > 0 && (
+          <StatCard icon="🍯" label="Honey Harvested" value={`${honeyKg.toFixed(1)} kg`}
+            sub={`${harvests.filter(h => h.product === 'Honey').length} harvests`} color="amber" />
+        )}
       </div>
 
-      {/* Charts row 1 */}
+      {/* Charts row 1 — skipped entirely on a farm with no animals yet */}
+      {livestock.length > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div style={card}>
           <SectionHeader title="Herd Composition" />
@@ -169,56 +214,70 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
 
-      {/* Charts row 2 */}
+      {/* Charts row 2 — each half appears only once it has real records */}
+      {(monthlyHealth.length > 0 || tempTrend.length > 0) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div style={card}>
-          <SectionHeader title="Monthly Health Events" />
-          <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={MONTHLY}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} iconType="circle" />
-              <Bar dataKey="vaccinations" fill="#3b82f6" radius={[4,4,0,0]} name="Vaccinations" />
-              <Bar dataKey="treatments"   fill="#f59e0b" radius={[4,4,0,0]} name="Treatments" />
-              <Bar dataKey="births"       fill="#22c55e" radius={[4,4,0,0]} name="Births" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {monthlyHealth.length > 0 && (
+          <div style={card}>
+            <SectionHeader title="Monthly Health Events" />
+            <ResponsiveContainer width="100%" height={190}>
+              <BarChart data={monthlyHealth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend iconSize={8} iconType="circle" />
+                <Bar dataKey="vaccinations" fill="#3b82f6" radius={[4,4,0,0]} name="Vaccinations" />
+                <Bar dataKey="treatments"   fill="#f59e0b" radius={[4,4,0,0]} name="Treatments" />
+                <Bar dataKey="checkups"     fill="#22c55e" radius={[4,4,0,0]} name="Check-ups" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
-        <div style={card}>
-          <SectionHeader title="Temperature Trend (24h)" />
-          <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={TEMP_DATA}>
-              <defs>
-                <linearGradient id="gBarn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="gHen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="hour" tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} interval={2} />
-              <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} unit="°" />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} iconType="circle" />
-              <Area type="monotone" dataKey="barn" stroke="#22c55e" strokeWidth={2.5} fill="url(#gBarn)" name="Barn 1" dot={false} activeDot={{ r:4, strokeWidth:0 }} />
-              <Area type="monotone" dataKey="henHouse" stroke="#f59e0b" strokeWidth={2.5} fill="url(#gHen)" name="Hen House" dot={false} activeDot={{ r:4, strokeWidth:0 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {tempTrend.length > 0 && (
+          <div style={card}>
+            <SectionHeader title="Temperature Readings" />
+            <ResponsiveContainer width="100%" height={190}>
+              <AreaChart data={tempTrend}>
+                <defs>
+                  <linearGradient id="gTemp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="t" tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} unit="°" />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend iconSize={8} iconType="circle" />
+                {tempSeries.map((name, i) => (
+                  <Area key={name} type="monotone" dataKey={name} connectNulls
+                    stroke={COLORS[i % COLORS.length]} strokeWidth={2.5}
+                    fill={i === 0 ? 'url(#gTemp)' : 'transparent'}
+                    name={name} dot={{ r: 3, strokeWidth: 0 }} activeDot={{ r:4, strokeWidth:0 }} />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+      )}
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent health */}
         <div style={card}>
           <SectionHeader title="Recent Health Events" />
+          {health.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+              <div className="text-4xl mb-3">📋</div>
+              <p className="text-sm font-medium">No health records yet</p>
+              <p className="text-xs mt-1">Vet visits and treatments will appear here.</p>
+            </div>
+          ) : (
           <div className="flex flex-col gap-3">
             {health.slice(0, 5).map((h, idx) => (
               <div key={h.id} className="flex items-start gap-3 fade-in" style={{ animationDelay: `${idx * 60}ms` }}>
@@ -239,6 +298,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          )}
         </div>
 
         {/* Critical sensors */}

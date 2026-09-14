@@ -1,0 +1,180 @@
+import { useState } from 'react';
+import { UserRound, KeyRound, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { FormField, Input, Btn } from '../components/FormField';
+import { AlertBox } from '../components/AlertBox';
+
+const card = {
+  background: '#fff',
+  borderRadius: 20,
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 1px 3px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04)',
+  padding: 24,
+};
+
+const PLAN_LABEL = { active: 'Active', trial: 'Free trial', unpaid: 'Not subscribed' };
+
+export default function Profile() {
+  const { user, updateProfile, changePassword } = useAuth();
+
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    farm: user?.farm || '',
+    email: user?.email || '',
+    avatar: user?.avatar || '',
+  });
+  const [saved, setSaved] = useState('');
+  const [error, setError] = useState('');
+
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [pwMsg, setPwMsg] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+
+  const set = (k) => (e) => { setError(''); setSaved(''); setForm(p => ({ ...p, [k]: e.target.value })); };
+  const setP = (k) => (e) => { setPwError(''); setPwMsg(''); setPw(p => ({ ...p, [k]: e.target.value })); };
+
+  if (!user) return null;
+
+  const dirty =
+    form.name !== user.name || form.farm !== user.farm ||
+    form.email !== user.email || form.avatar !== user.avatar;
+
+  const handleSave = () => {
+    setError(''); setSaved('');
+    const res = updateProfile(form);
+    if (!res.ok) { setError(res.error); return; }
+    setSaved(res.emailChanged
+      ? 'Profile updated. Your email changed, so it needs confirming again.'
+      : 'Profile updated.');
+  };
+
+  const handlePassword = async () => {
+    setPwError(''); setPwMsg('');
+    if (pw.next !== pw.confirm) { setPwError('The new passwords do not match.'); return; }
+    setPwBusy(true);
+    const res = await changePassword(pw.current, pw.next);
+    setPwBusy(false);
+    if (!res.ok) { setPwError(res.error); return; }
+    setPw({ current: '', next: '', confirm: '' });
+    setPwMsg('Password changed.');
+  };
+
+  return (
+    <div className="flex flex-col gap-5 fade-in">
+      <div>
+        <h2 className="text-xl font-extrabold text-slate-800">Profile</h2>
+        <p className="text-sm text-slate-400 mt-0.5">Your account and sign-in details</p>
+      </div>
+
+      {/* Identity summary */}
+      <div style={card} className="flex flex-col sm:flex-row sm:items-center gap-5">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-extrabold text-white flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>
+          {user.avatar}
+        </div>
+        <div className="flex-1">
+          <div className="text-lg font-extrabold text-slate-900">{user.name}</div>
+          <div className="text-sm text-slate-500">{user.farm}</div>
+          <div className="text-xs text-slate-400 mt-1">{user.email}</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+            {user.role}
+          </span>
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+            style={user.plan === 'active'
+              ? { background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }
+              : user.plan === 'trial'
+                ? { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }
+                : { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+            {PLAN_LABEL[user.plan] || user.plan}
+          </span>
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+            style={user.emailVerified
+              ? { background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }
+              : { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+            {user.emailVerified ? '✓ Email confirmed' : 'Email not confirmed'}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Details */}
+        <div style={card}>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <UserRound size={15} /> Account details
+          </h3>
+          <div className="flex flex-col gap-4">
+            <FormField label="Full name">
+              <Input value={form.name} onChange={set('name')} />
+            </FormField>
+            <FormField label="Farm name">
+              <Input value={form.farm} onChange={set('farm')} />
+            </FormField>
+            <FormField label="Email address"
+              hint="Changing this means your email needs confirming again">
+              <Input type="email" value={form.email} onChange={set('email')} autoComplete="email" />
+            </FormField>
+            <FormField label="Initials" hint="Shown on your avatar — leave blank to derive from your name">
+              <Input maxLength={2} value={form.avatar} onChange={set('avatar')} className="w-24" />
+            </FormField>
+
+            {error && <AlertBox color="red">{error}</AlertBox>}
+            {saved && (
+              <AlertBox color="green">
+                <span className="inline-flex items-center gap-1.5"><Check size={14} />{saved}</span>
+              </AlertBox>
+            )}
+
+            <div className="flex gap-2">
+              <Btn onClick={handleSave} disabled={!dirty}>Save changes</Btn>
+              {dirty && (
+                <Btn variant="secondary"
+                  onClick={() => { setForm({ name: user.name, farm: user.farm, email: user.email, avatar: user.avatar }); setError(''); setSaved(''); }}>
+                  Cancel
+                </Btn>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Password */}
+        <div style={card}>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <KeyRound size={15} /> Change password
+          </h3>
+          <div className="flex flex-col gap-4">
+            <FormField label="Current password">
+              <Input type="password" value={pw.current} onChange={setP('current')} autoComplete="current-password" />
+            </FormField>
+            <FormField label="New password" hint="At least 8 characters">
+              <Input type="password" value={pw.next} onChange={setP('next')} autoComplete="new-password" />
+            </FormField>
+            <FormField label="Confirm new password">
+              <Input type="password" value={pw.confirm} onChange={setP('confirm')} autoComplete="new-password" />
+            </FormField>
+
+            {pwError && <AlertBox color="red">{pwError}</AlertBox>}
+            {pwMsg && (
+              <AlertBox color="green">
+                <span className="inline-flex items-center gap-1.5"><Check size={14} />{pwMsg}</span>
+              </AlertBox>
+            )}
+
+            <Btn onClick={handlePassword} disabled={pwBusy || !pw.current || !pw.next}>
+              {pwBusy ? 'Saving…' : 'Change password'}
+            </Btn>
+          </div>
+
+          <p className="text-xs text-slate-400 mt-5 leading-relaxed">
+            Your account is stored in this browser. Signing in on another device or clearing site
+            data will not carry it across — that needs a server-side account, which isibaya
+            does not have yet.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

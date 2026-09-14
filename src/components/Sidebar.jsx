@@ -143,20 +143,25 @@ export function Sidebar({ open, onClose }) {
 
         {/* User */}
         <div className="px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
-          <div className="flex items-center gap-3 mb-3">
+          <NavLink
+            to="/profile"
+            onClick={onClose}
+            className="flex items-center gap-3 mb-3 w-full rounded-xl p-1 -m-1 transition-all hover:bg-white/10"
+            title="Edit your profile"
+          >
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
               style={{ background: 'rgba(255,255,255,.9)', color: '#166534' }}
             >
               {user?.avatar}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 text-left">
               <div className="text-white text-sm font-semibold truncate leading-tight">{user?.name}</div>
               <div className="text-xs truncate mt-0.5" style={{ color: 'rgba(255,255,255,.4)' }}>
                 {user?.farm}
               </div>
             </div>
-          </div>
+          </NavLink>
           <button
             onClick={logout}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all hover:bg-white/10 group"

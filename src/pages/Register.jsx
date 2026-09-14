@@ -22,7 +22,7 @@ export default function Register() {
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    const res = register({ name: form.name, email: form.email, farm: form.farm, password: form.password });
+    const res = await register({ name: form.name, email: form.email, farm: form.farm, password: form.password });
     setLoading(false);
     if (!res.ok) { setError(res.error); return; }
     nav('/payment', { replace: true });

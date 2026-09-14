@@ -20,7 +20,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    const res = login(form.email, form.password);
+    const res = await login(form.email, form.password);
     setLoading(false);
     if (!res.ok) { setError(res.error); return; }
     nav(res.user.plan === 'unpaid' ? '/payment' : '/dashboard', { replace: true });

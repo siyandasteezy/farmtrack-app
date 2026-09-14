@@ -9,6 +9,7 @@ const PAGE_TITLES = {
   '/livestock':   'Livestock',
   '/health':      'Health & Vet',
   '/apiary':      'Apiary',
+  '/profile':     'Profile',
   '/sensors':     'Sensors',
   '/feed':        'Feed & Nutrition',
   '/regulations': 'Regulations',

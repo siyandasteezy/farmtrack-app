@@ -11,6 +11,7 @@ import Dashboard   from './pages/Dashboard';
 import Livestock   from './pages/Livestock';
 import Health      from './pages/Health';
 import Apiary      from './pages/Apiary';
+import Profile     from './pages/Profile';
 import Sensors     from './pages/Sensors';
 import Feed        from './pages/Feed';
 import Regulations from './pages/Regulations';
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/livestock"   element={<Livestock />} />
         <Route path="/health"      element={<Health />} />
         <Route path="/apiary"      element={<Apiary />} />
+        <Route path="/profile"     element={<Profile />} />
         <Route path="/sensors"     element={<Sensors />} />
         <Route path="/feed"        element={<Feed />} />
         <Route path="/regulations" element={<Regulations />} />

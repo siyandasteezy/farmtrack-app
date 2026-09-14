@@ -208,9 +208,9 @@ export default function Profile() {
           </div>
 
           <p className="text-xs text-slate-400 mt-5 leading-relaxed">
-            Your account is stored in this browser. Signing in on another device or clearing site
-            data will not carry it across — that needs a server-side account, which isibaya
-            does not have yet.
+            Need a hand with your account or billing? Email{' '}
+            <a href="mailto:support@smartpick.co.za" className="font-semibold hover:underline"
+              style={{ color: '#16a34a' }}>support@smartpick.co.za</a>.
           </p>
         </div>
       </div>

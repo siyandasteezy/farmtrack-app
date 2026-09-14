@@ -9,7 +9,7 @@
 const RESEND_API = 'https://api.resend.com/emails';
 const DEFAULT_FROM = 'isibaya <no-reply@isibaya.smartpick.co.za>';
 
-export async function sendEmail({ to, subject, html, text }) {
+export async function sendEmail({ to, subject, html, text, replyTo }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, error: 'Email is not configured yet (RESEND_API_KEY missing).' };
 
@@ -23,6 +23,9 @@ export async function sendEmail({ to, subject, html, text }) {
         subject,
         html,
         ...(text ? { text } : {}),
+        // Lets support reply straight to the person who wrote in, even though
+        // the message is sent from our own verified domain.
+        ...(replyTo ? { reply_to: [replyTo] } : {}),
       }),
     });
     const data = await res.json().catch(() => null);

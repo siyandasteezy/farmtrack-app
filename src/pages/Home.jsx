@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Radio, HeartPulse, Wheat, ShieldCheck, BarChart3, MapPin,
-  Tractor, Map, LayoutDashboard, ArrowRight, Check, Sparkles,
+  Tractor, Map, LayoutDashboard, ArrowRight, Check, Sparkles, Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Btn } from '../components/FormField';
+import { FormField, Input, Textarea, Btn } from '../components/FormField';
+import { AlertBox } from '../components/AlertBox';
+
+export const SUPPORT_EMAIL = 'support@smartpick.co.za';
 
 /* License-free photography — Unsplash (https://unsplash.com/license) */
 const IMG = {
@@ -45,6 +49,89 @@ function Eyebrow({ children }) {
     <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-green-700">
       <span className="w-6 h-px bg-green-500" />{children}
     </span>
+  );
+}
+
+function ContactForm() {
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '', website: '' });
+  const [state, setState] = useState({ busy: false, sent: false, error: '' });
+  const set = (k) => (e) => {
+    setState(s => ({ ...s, error: '' }));
+    setForm(p => ({ ...p, [k]: e.target.value }));
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setState({ busy: true, sent: false, error: '' });
+    try {
+      const res = await fetch('/.netlify/functions/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setState({ busy: false, sent: false, error: data?.error || 'Could not send your message.' }); return; }
+      setState({ busy: false, sent: true, error: '' });
+      setForm({ name: '', email: '', subject: '', message: '', website: '' });
+    } catch {
+      setState({ busy: false, sent: false, error: `You appear to be offline. Email ${SUPPORT_EMAIL} directly.` });
+    }
+  };
+
+  if (state.sent) {
+    return (
+      <div className="bg-white rounded-3xl p-8 flex flex-col items-center justify-center text-center"
+        style={{ boxShadow: '0 4px 6px rgba(0,0,0,.04), 0 20px 60px rgba(0,0,0,.08)', minHeight: 320 }}>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
+          <Check size={26} style={{ color: '#15803d' }} strokeWidth={3} />
+        </div>
+        <h3 className="text-lg font-extrabold text-slate-900">Message sent</h3>
+        <p className="mt-2 text-sm text-slate-500 leading-relaxed max-w-xs">
+          Thanks — we'll reply to the address you gave us. Most enquiries get an answer within a working day.
+        </p>
+        <button onClick={() => setState({ busy: false, sent: false, error: '' })}
+          className="mt-6 text-sm font-semibold hover:underline" style={{ color: '#16a34a' }}>
+          Send another message
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="bg-white rounded-3xl p-8 flex flex-col gap-4"
+      style={{ boxShadow: '0 4px 6px rgba(0,0,0,.04), 0 20px 60px rgba(0,0,0,.08)' }}>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <FormField label="Your name">
+          <Input required value={form.name} onChange={set('name')} placeholder="Thandi Mokoena" autoComplete="name" />
+        </FormField>
+        <FormField label="Email address">
+          <Input required type="email" value={form.email} onChange={set('email')}
+            placeholder="you@farm.co.za" autoComplete="email" />
+        </FormField>
+      </div>
+      <FormField label="Subject" hint="Optional">
+        <Input value={form.subject} onChange={set('subject')} placeholder="e.g. Managing hives across two sites" />
+      </FormField>
+      <FormField label="Message">
+        <Textarea required rows={5} value={form.message} onChange={set('message')}
+          placeholder="Tell us about your farm and what you're trying to do…" />
+      </FormField>
+
+      {/* Honeypot — hidden from people, tempting to bots. */}
+      <input type="text" name="website" value={form.website} onChange={set('website')}
+        tabIndex={-1} autoComplete="off" aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
+
+      {state.error && <AlertBox color="red">{state.error}</AlertBox>}
+
+      <Btn type="submit" size="lg" className="w-full mt-1" disabled={state.busy}>
+        {state.busy ? 'Sending…' : <>Send message <ArrowRight size={16} /></>}
+      </Btn>
+      <p className="text-xs text-slate-400 text-center">
+        We'll only use your details to answer you.
+      </p>
+    </form>
   );
 }
 
@@ -283,6 +370,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Contact ─────────────────────────────────────────── */}
+      <section id="contact" className="bg-white border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-24 grid lg:grid-cols-2 gap-14">
+          <div>
+            <Eyebrow>Talk to us</Eyebrow>
+            <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Questions about your farm?
+            </h2>
+            <p className="mt-4 text-slate-600 leading-relaxed">
+              Whether you run cattle, sheep or hives, tell us what you need and we'll come back to you.
+              Happy to talk through whether isibaya fits before you sign up.
+            </p>
+
+            <a href={`mailto:${SUPPORT_EMAIL}`}
+              className="mt-8 inline-flex items-center gap-3 rounded-2xl px-5 py-4 transition-colors hover:bg-green-50"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
+                <Mail size={19} style={{ color: '#15803d' }} />
+              </span>
+              <span>
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">Email us</span>
+                <span className="block text-sm font-bold text-slate-800">{SUPPORT_EMAIL}</span>
+              </span>
+            </a>
+          </div>
+
+          <ContactForm />
+        </div>
+      </section>
+
       {/* ── Final CTA (full-bleed image) ────────────────────── */}
       <section className="relative">
         <div className="absolute inset-0">
@@ -315,7 +433,11 @@ export default function Home() {
           <p className="text-xs text-slate-400 order-last sm:order-none text-center">
             © {new Date().getFullYear()} isibaya. Livestock management for modern farms.
           </p>
-          <div className="flex items-center gap-5 text-sm">
+          <div className="flex items-center gap-5 text-sm flex-wrap justify-center">
+            <a href="#contact" className="text-slate-300 hover:text-white transition-colors">Contact</a>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-300 hover:text-white transition-colors">
+              {SUPPORT_EMAIL}
+            </a>
             <Link to="/login" className="text-slate-300 hover:text-white transition-colors">Sign in</Link>
             <Link to="/register" className="font-semibold text-green-400 hover:text-green-300 transition-colors">Create account</Link>
           </div>

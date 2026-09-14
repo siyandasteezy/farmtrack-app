@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, LocateFixed, Building2, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, LocateFixed, Building2, MapPin, Search, Loader2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { BoundaryEditor } from '../components/BoundaryEditor';
 import { Modal } from '../components/Modal';
 import { FormField, Input, Select, Btn } from '../components/FormField';
+import { AlertBox } from '../components/AlertBox';
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
@@ -115,6 +116,36 @@ export default function FarmPlan() {
   const [profileForm, setProfileForm] = useState(farmProfile);
   const [showBoundaryEditor, setShowBoundaryEditor] = useState(false);
   const [zoneModal, setZoneModal] = useState(null);
+  const [geo, setGeo] = useState({ busy: false, error: '', results: [] });
+
+  /* Looks the typed address up and offers the matches, rather than silently
+     taking the first — "Wellington" alone matches several countries. */
+  const lookupAddress = async () => {
+    const q = (profileForm.address || '').trim();
+    if (q.length < 3) return;
+    setGeo({ busy: true, error: '', results: [] });
+    try {
+      const params = new URLSearchParams({ q, country: profileForm.country || '' });
+      const res = await fetch(`/.netlify/functions/geocode?${params}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setGeo({ busy: false, error: data?.error || 'Could not look that address up.', results: [] });
+        return;
+      }
+      if (!data.results?.length) {
+        setGeo({ busy: false, error: 'No match found. Try a nearby town, or type the coordinates in by hand.', results: [] });
+        return;
+      }
+      setGeo({ busy: false, error: '', results: data.results });
+    } catch {
+      setGeo({ busy: false, error: 'You need to be online to look up an address.', results: [] });
+    }
+  };
+
+  const applyMatch = (r) => {
+    setProfileForm(p => ({ ...p, lat: String(r.lat), lng: String(r.lng) }));
+    setGeo({ busy: false, error: '', results: [] });
+  };
 
   const handleSaveProfile = () => {
     setFarmProfile(profileForm);
@@ -182,9 +213,38 @@ export default function FarmPlan() {
                 </Select>
               </FormField>
             </div>
-            <FormField label="Address">
-              <Input placeholder="Street address, town, region" value={profileForm.address} onChange={setP('address')} />
+            <FormField label="Address"
+              hint="Type the address, then use “Find coordinates” to fill in latitude and longitude">
+              <div className="flex gap-2">
+                <Input placeholder="Street address, town, region" className="flex-1"
+                  value={profileForm.address} onChange={setP('address')} />
+                <Btn variant="secondary" onClick={lookupAddress}
+                  disabled={geo.busy || (profileForm.address || '').trim().length < 3}>
+                  {geo.busy
+                    ? <span className="flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" />Searching…</span>
+                    : <span className="flex items-center gap-1.5"><Search size={14} />Find coordinates</span>}
+                </Btn>
+              </div>
             </FormField>
+
+            {geo.error && <AlertBox color="amber">{geo.error}</AlertBox>}
+
+            {geo.results.length > 0 && (
+              <div className="rounded-2xl p-3 flex flex-col gap-1"
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-1 pb-1">
+                  {geo.results.length === 1 ? 'One match' : `${geo.results.length} matches — pick the right one`}
+                </div>
+                {geo.results.map((r) => (
+                  <button key={`${r.lat},${r.lng}`} type="button"
+                    onClick={() => applyMatch(r)}
+                    className="text-left px-3 py-2 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-green-200">
+                    <div className="text-sm text-slate-700 leading-snug">{r.label}</div>
+                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">{r.lat}, {r.lng}</div>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Total area">
                 <Input type="number" step="0.1" min="0" placeholder="0" value={profileForm.area} onChange={setP('area')} />

@@ -1,0 +1,349 @@
+// isibaya — server-side data model.
+//
+// Everything is owned by a User and scoped by userId. The farm-data models
+// mirror the shapes the app already uses in localStorage so the client-side
+// records can be imported without reshaping them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (…-pooler.…neon.tech)
+  directUrl = env("DIRECT_URL") // direct, used by `prisma migrate deploy`
+}
+
+// ── Identity & billing ──────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  farm          String   @default("")
+  avatar        String?
+  role          String   @default("Owner")
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Billing. The trial starts at registration; each Yoco payment extends
+  // subscriptionEndsAt by a month. Access is decided from these server-side,
+  // never from anything the browser sends.
+  trialEndsAt        DateTime?
+  subscriptionEndsAt DateTime?
+
+  verifications EmailVerification[]
+  payments      Payment[]
+  animals       Animal[]
+  healthRecords HealthRecord[]
+  inspections   Inspection[]
+  harvests      Harvest[]
+  colonyEvents  ColonyEvent[]
+  sensors       Sensor[]
+  readings      ManualReading[]
+  feedItems     FeedItem[]
+  equipment     Equipment[]
+  tickets       Ticket[]
+  devices       Device[]
+  zones         Zone[]
+  farmProfile   FarmProfile?
+  farmBoundary  FarmBoundary?
+}
+
+/// Single-use email confirmation link. Only the hash of the token is stored,
+/// so a database leak does not hand out working confirmation links.
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String // address being confirmed — may differ from User.email mid-change
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  yocoCheckoutId String    @unique
+  amountCents    Int
+  currency       String    @default("ZAR")
+  status         String    @default("PENDING") // PENDING | PAID | FAILED
+  paidAt         DateTime?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ── Livestock ───────────────────────────────────────────────────────────
+
+/// One row per animal — or per hive, when species is "Bee".
+model Animal {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag      String
+  name     String?
+  species  String
+  breed    String?
+  dob      DateTime?
+  sex      String?
+  weight   Float?
+  location String?
+  status   String?
+  notes    String?
+
+  // Hive-specific (species = "Bee")
+  strength    String?
+  queenStatus String?
+  queenYear   String?
+  queenColour String?
+
+  // GPS tracker / hive sensor
+  trackerDeviceId String?
+  trackerBattery  Int?
+  trackerLat      Float?
+  trackerLng      Float?
+  trackerLastSeen DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Tags identify animals on a farm, so they must not repeat within one account.
+  @@unique([userId, tag])
+  @@index([userId, species])
+}
+
+model HealthRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime
+  animalTag  String
+  animalName String?
+  type       String
+  vet        String?
+  status     String   @default("Completed")
+  cost       Float    @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ── Apiary ──────────────────────────────────────────────────────────────
+
+model Inspection {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime
+  hiveTag      String
+  inspector    String?
+  queenSeen    String?
+  broodPattern String?
+  stores       String?
+  temperament  String?
+  varroaCount  Float?
+  pests        String[] @default([])
+  actions      String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, hiveTag])
+}
+
+model Harvest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  hiveTag   String
+  product   String
+  quantity  Float
+  frames    Int?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, product])
+}
+
+model ColonyEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  hiveTag   String
+  type      String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, hiveTag])
+}
+
+// ── Sensors & devices ───────────────────────────────────────────────────
+
+model Sensor {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  category     String   @default("Environment")
+  icon         String?
+  location     String?
+  unit         String
+  min          Float    @default(0)
+  max          Float    @default(100)
+  value        Float    @default(0)
+  initialValue Float?
+  status       String   @default("normal") // normal | warn | alert
+  isManual     Boolean  @default(false)
+  isCustom     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  readings ManualReading[]
+  devices  Device[]
+
+  @@index([userId])
+}
+
+model ManualReading {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sensorId   String
+  sensor     Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  sensorName String?
+  location   String?
+  unit       String?
+  value      Float
+  status     String?
+  reason     String?
+  notes      String?
+  loggedAt   DateTime @default(now())
+
+  @@index([userId, loggedAt])
+  @@index([sensorId])
+}
+
+model Device {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId          String
+  sensorId          String?
+  sensor            Sensor?   @relation(fields: [sensorId], references: [id], onDelete: SetNull)
+  protocol          String    @default("MQTT")
+  tokenHash         String? // device token stored hashed, never in the clear
+  reportingInterval Int       @default(60)
+  status            String    @default("pending") // pending | online | offline
+  lastSeen          DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+// ── Feed, equipment, tickets ────────────────────────────────────────────
+
+model FeedItem {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  species      String
+  type         String
+  dailyPerHead Float
+  stock        Float    @default(0)
+  unit         String   @default("kg")
+  costPerKg    Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Equipment {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         String
+  serial       String?
+  location     String?
+  status       String    @default("Active")
+  purchaseDate DateTime?
+  lastService  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String?
+  subCategory String?
+  priority    String   @default("Medium")
+  status      String   @default("Open")
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+// ── Farm plan ───────────────────────────────────────────────────────────
+
+model Zone {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("Paddock")
+  color     String?
+  border    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FarmProfile {
+  id       String @id @default(cuid())
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String @default("")
+  address  String @default("")
+  country  String @default("")
+  area     String @default("")
+  areaUnit String @default("ha")
+  lat      Float?
+  lng      Float?
+}
+
+model FarmBoundary {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   String @default("circle") // circle | polygon
+  lat    Float?
+  lng    Float?
+  radius Float?
+  points Json? // polygon vertices when type = "polygon"
+}

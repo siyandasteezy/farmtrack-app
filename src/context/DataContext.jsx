@@ -1,184 +1,259 @@
-import { createContext, useContext, useState, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const DataContext = createContext(null);
+const ENDPOINT = '/.netlify/functions/data';
 
-/* ── localStorage helpers ───────────────────────────────────────────── */
+/**
+ * Farm data, held on the server and scoped to the signed-in account.
+ *
+ * Every mutation goes to the database first and only then updates local state,
+ * so what is on screen is what was actually saved. The function signatures are
+ * unchanged from the localStorage version, so pages call them exactly as before.
+ */
 
-function load(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v != null ? JSON.parse(v) : fallback;
-  } catch { return fallback; }
+const EMPTY = {
+  livestock: [], health: [], inspections: [], harvests: [], colonyEvents: [],
+  sensors: [], manualReadings: [], feed: [], equipment: [], tickets: [],
+  devices: [], zones: [],
+  farmProfile: { name: '', address: '', country: '', area: '', areaUnit: 'ha', lat: '', lng: '' },
+  farmBoundary: { type: 'circle', lat: -33.7300, lng: 19.0100, radius: 450 },
+};
+
+async function call(body) {
+  const res = await fetch(ENDPOINT, {
+    method: body ? 'POST' : 'GET',
+    credentials: 'same-origin',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || 'Could not reach the server.');
+  return data;
 }
-
-function save(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-  return val;
-}
-
-/* ── Provider ───────────────────────────────────────────────────────── */
 
 export function DataProvider({ children }) {
-  // Persisted ID counter (ref = synchronous, no async state issues)
-  const nextIdRef = useRef(load('ft_nextId', 1));
-  const newId = () => {
-    const id = nextIdRef.current;
-    nextIdRef.current = id + 1;
-    try { localStorage.setItem('ft_nextId', String(nextIdRef.current)); } catch {}
-    return id;
-  };
+  const [state, setState] = useState(EMPTY);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [livestock,      setLivestock]      = useState(() => load('ft_livestock',      []));
-  const [health,         setHealth]         = useState(() => load('ft_health',         []));
-  const [sensors,        setSensors]        = useState(() => load('ft_sensors',        []));
-  const [manualReadings, setManualReadings] = useState(() => load('ft_manualReadings', []));
-  const [feed,           setFeed]           = useState(() => load('ft_feed',           []));
-  const [equipment,      setEquipment]      = useState(() => load('ft_equipment',      []));
-  const [tickets,        setTickets]        = useState(() => load('ft_tickets',        []));
-  const [devices,        setDevices]        = useState(() => load('ft_devices',        []));
-  const [farmBoundary,   setFarmBoundaryRaw] = useState(() => load('ft_farmBoundary', { type: 'circle', lat: -33.7300, lng: 19.0100, radius: 450 }));
-  const [farmProfile,    setFarmProfileRaw]  = useState(() => load('ft_farmProfile',  { name: '', address: '', country: '', area: '', areaUnit: 'ha', lat: '', lng: '' }));
-  const [zones,          setZones]           = useState(() => load('ft_zones',         []));
-  const [inspections,    setInspections]     = useState(() => load('ft_inspections',   []));
-  const [harvests,       setHarvests]        = useState(() => load('ft_harvests',      []));
-  const [colonyEvents,   setColonyEvents]    = useState(() => load('ft_colonyEvents',  []));
+  const reload = useCallback(async () => {
+    try {
+      const data = await call(null);
+      setState({ ...EMPTY, ...data });
+      setError('');
+      return data;
+    } catch (e) {
+      setError(e.message);
+      return null;
+    }
+  }, []);
 
-  const setFarmBoundary = (v) => { save('ft_farmBoundary', v); setFarmBoundaryRaw(v); };
-  const setFarmProfile  = (v) => { save('ft_farmProfile',  v); setFarmProfileRaw(v); };
+  useEffect(() => {
+    // No mounted-ref guard: StrictMode remounts would leave it stuck false and
+    // the app would never leave its loading state. React 18+ tolerates a state
+    // update after unmount, so the guard bought nothing.
+    (async () => {
+      await reload();
+      setLoading(false);
+    })();
+  }, [reload]);
 
-  /* ── Zones ── */
-  const addZone    = (z)  => setZones(p => save('ft_zones', [...p, { ...z, id: `zone-${newId()}` }]));
-  const updateZone = (z)  => setZones(p => save('ft_zones', p.map(x => x.id === z.id ? z : x)));
-  const removeZone = (id) => setZones(p => save('ft_zones', p.filter(x => x.id !== id)));
+  /* ── generic helpers ──────────────────────────────────────────── */
+
+  const put = useCallback(async (collection, record, { prepend = false } = {}) => {
+    try {
+      const { record: saved } = await call({ collection, op: 'create', record });
+      setState(s => ({ ...s, [collection]: prepend ? [saved, ...s[collection]] : [...s[collection], saved] }));
+      setError('');
+      return saved;
+    } catch (e) { setError(e.message); return null; }
+  }, []);
+
+  const patch = useCallback(async (collection, id, record) => {
+    try {
+      const { record: saved } = await call({ collection, op: 'update', id, record });
+      setState(s => ({ ...s, [collection]: s[collection].map(x => (x.id === id ? saved : x)) }));
+      setError('');
+      return saved;
+    } catch (e) { setError(e.message); return null; }
+  }, []);
+
+  const drop = useCallback(async (collection, id) => {
+    try {
+      await call({ collection, op: 'delete', id });
+      setState(s => ({ ...s, [collection]: s[collection].filter(x => x.id !== id) }));
+      setError('');
+      return true;
+    } catch (e) { setError(e.message); return false; }
+  }, []);
+
+  const saveSingleton = useCallback(async (collection, record) => {
+    // Show it straight away — this is a form the user just submitted — then
+    // reconcile with whatever the server stored.
+    setState(s => ({ ...s, [collection]: record }));
+    try {
+      const { record: saved } = await call({ collection, record });
+      setState(s => ({ ...s, [collection]: saved }));
+      setError('');
+    } catch (e) { setError(e.message); }
+  }, []);
 
   /* ── Livestock ── */
-  const addAnimal    = (a)  => setLivestock(p => save('ft_livestock', [...p, { ...a, id: newId() }]));
-  const updateAnimal = (a)  => setLivestock(p => save('ft_livestock', p.map(x => x.id === a.id ? a : x)));
-  const removeAnimal = (id) => setLivestock(p => save('ft_livestock', p.filter(x => x.id !== id)));
+  const addAnimal    = (a)  => put('livestock', a);
+  const updateAnimal = (a)  => patch('livestock', a.id, a);
+  const removeAnimal = (id) => drop('livestock', id);
 
   /* ── Health ── */
-  const addHealth    = (h)  => setHealth(p => save('ft_health', [{ ...h, id: newId() }, ...p]));
-  const updateHealth = (h)  => setHealth(p => save('ft_health', p.map(x => x.id === h.id ? h : x)));
-  const removeHealth = (id) => setHealth(p => save('ft_health', p.filter(x => x.id !== id)));
+  const addHealth    = (h)  => put('health', h, { prepend: true });
+  const updateHealth = (h)  => patch('health', h.id, h);
+  const removeHealth = (id) => drop('health', id);
 
-  /* ── Apiary: hive inspections ── */
-  const addInspection    = (i)  => setInspections(p => save('ft_inspections', [{ ...i, id: newId() }, ...p]));
-  const updateInspection = (i)  => setInspections(p => save('ft_inspections', p.map(x => x.id === i.id ? i : x)));
-  const removeInspection = (id) => setInspections(p => save('ft_inspections', p.filter(x => x.id !== id)));
+  /* ── Apiary ── */
+  const addInspection    = (i)  => put('inspections', i, { prepend: true });
+  const updateInspection = (i)  => patch('inspections', i.id, i);
+  const removeInspection = (id) => drop('inspections', id);
 
-  /* ── Apiary: hive harvests ── */
-  const addHarvest    = (h)  => setHarvests(p => save('ft_harvests', [{ ...h, id: newId() }, ...p]));
-  const updateHarvest = (h)  => setHarvests(p => save('ft_harvests', p.map(x => x.id === h.id ? h : x)));
-  const removeHarvest = (id) => setHarvests(p => save('ft_harvests', p.filter(x => x.id !== id)));
+  const addHarvest    = (h)  => put('harvests', h, { prepend: true });
+  const updateHarvest = (h)  => patch('harvests', h.id, h);
+  const removeHarvest = (id) => drop('harvests', id);
 
-  /* ── Apiary: colony events (swarm, requeen, split, abscond…) ── */
-  const addColonyEvent    = (e)  => setColonyEvents(p => save('ft_colonyEvents', [{ ...e, id: newId() }, ...p]));
-  const updateColonyEvent = (e)  => setColonyEvents(p => save('ft_colonyEvents', p.map(x => x.id === e.id ? e : x)));
-  const removeColonyEvent = (id) => setColonyEvents(p => save('ft_colonyEvents', p.filter(x => x.id !== id)));
+  const addColonyEvent    = (e)  => put('colonyEvents', e, { prepend: true });
+  const updateColonyEvent = (e)  => patch('colonyEvents', e.id, e);
+  const removeColonyEvent = (id) => drop('colonyEvents', id);
 
   /* ── Sensors ── */
-  const addSensor    = (s)  => setSensors(p => save('ft_sensors', [...p, { ...s, id: newId(), initialValue: s.value, isManual: false }]));
-  const updateSensor = (s)  => setSensors(p => save('ft_sensors', p.map(x => x.id === s.id ? s : x)));
-  const removeSensor = (id) => {
-    setSensors(p => save('ft_sensors', p.filter(x => x.id !== id)));
-    setManualReadings(p => save('ft_manualReadings', p.filter(x => x.sensorId !== id)));
+  const addSensor = (s) => put('sensors', { ...s, initialValue: s.value, isManual: false, isCustom: true });
+  const updateSensor = (s) => patch('sensors', s.id, s);
+
+  const removeSensor = async (id) => {
+    const ok = await drop('sensors', id);
+    // The database cascades the readings; mirror that locally.
+    if (ok) setState(s => ({ ...s, manualReadings: s.manualReadings.filter(r => r.sensorId !== id) }));
   };
 
-  const addManualReading = (reading) => {
-    const sensor = sensors.find(s => s.id === reading.sensorId);
+  const statusFor = (value, sensor) =>
+    value < (sensor?.min ?? 0) ? 'alert' : value > (sensor?.max ?? 9999) ? 'warn' : 'normal';
+
+  const addManualReading = async (reading) => {
+    const sensor = state.sensors.find(s => s.id === reading.sensorId);
     const numVal = parseFloat(reading.value);
-    const newStatus = numVal < (sensor?.min ?? 0) ? 'alert' : numVal > (sensor?.max ?? 9999) ? 'warn' : 'normal';
-    const entry = {
-      id: `mr-${newId()}`,
+    const loggedAt = new Date().toISOString();
+
+    const saved = await put('manualReadings', {
       sensorId: reading.sensorId,
       sensorName: sensor?.name || '',
       location: sensor?.location || '',
       unit: sensor?.unit || '',
       value: numVal,
+      status: statusFor(numVal, sensor),
       reason: reading.reason,
       notes: reading.notes || '',
-      loggedAt: new Date().toISOString(),
-    };
-    setManualReadings(p => save('ft_manualReadings', [entry, ...p]));
-    if (sensor) {
-      setSensors(p => save('ft_sensors', p.map(x => x.id === sensor.id
-        ? { ...x, value: numVal, status: newStatus, isManual: true, lastManualAt: entry.loggedAt }
-        : x
-      )));
+      loggedAt,
+    }, { prepend: true });
+
+    // A manual reading overrides the sensor's current value until cleared.
+    if (saved && sensor) {
+      await patch('sensors', sensor.id, {
+        ...sensor, value: numVal, status: statusFor(numVal, sensor),
+        isManual: true, lastManualAt: loggedAt,
+      });
     }
   };
 
-  const removeManualReading = (id) => {
-    const mr = manualReadings.find(r => r.id === id);
-    setManualReadings(p => save('ft_manualReadings', p.filter(x => x.id !== id)));
-    // If removed reading was the latest for its sensor, revert sensor to previous value
-    if (mr) {
-      const remaining = manualReadings.filter(r => r.id !== id && r.sensorId === mr.sensorId);
-      setSensors(p => save('ft_sensors', p.map(x => {
-        if (x.id !== mr.sensorId) return x;
-        if (remaining.length > 0) {
-          const latest = remaining[0];
-          const numVal = latest.value;
-          const newStatus = numVal < (x.min ?? 0) ? 'alert' : numVal > (x.max ?? 9999) ? 'warn' : 'normal';
-          return { ...x, value: numVal, status: newStatus };
-        }
-        return { ...x, value: x.initialValue ?? x.value, isManual: false, lastManualAt: null };
-      })));
+  const removeManualReading = async (id) => {
+    const mr = state.manualReadings.find(r => r.id === id);
+    const ok = await drop('manualReadings', id);
+    if (!ok || !mr) return;
+
+    const sensor = state.sensors.find(s => s.id === mr.sensorId);
+    if (!sensor) return;
+
+    // Fall back to the next most recent reading, or the sensor's original value.
+    const remaining = state.manualReadings.filter(r => r.id !== id && r.sensorId === mr.sensorId);
+    if (remaining.length > 0) {
+      const v = remaining[0].value;
+      await patch('sensors', sensor.id, { ...sensor, value: v, status: statusFor(v, sensor) });
+    } else {
+      const v = sensor.initialValue ?? sensor.value;
+      await patch('sensors', sensor.id, {
+        ...sensor, value: v, status: statusFor(v, sensor), isManual: false, lastManualAt: null,
+      });
     }
   };
 
-  const clearManualOverride = (sensorId) => {
-    setSensors(p => save('ft_sensors', p.map(x => {
-      if (x.id !== sensorId) return x;
-      const v = x.initialValue ?? x.value;
-      const newStatus = v < (x.min ?? 0) ? 'alert' : v > (x.max ?? 9999) ? 'warn' : 'normal';
-      return { ...x, value: v, status: newStatus, isManual: false, lastManualAt: null };
-    })));
+  const clearManualOverride = async (sensorId) => {
+    const sensor = state.sensors.find(s => s.id === sensorId);
+    if (!sensor) return;
+    const v = sensor.initialValue ?? sensor.value;
+    await patch('sensors', sensorId, {
+      ...sensor, value: v, status: statusFor(v, sensor), isManual: false, lastManualAt: null,
+    });
   };
 
   /* ── Feed ── */
-  const addFeed    = (f)  => setFeed(p => save('ft_feed', [...p, { ...f, id: newId() }]));
-  const updateFeed = (f)  => setFeed(p => save('ft_feed', p.map(x => x.id === f.id ? f : x)));
-  const removeFeed = (id) => setFeed(p => save('ft_feed', p.filter(x => x.id !== id)));
+  const addFeed    = (f)  => put('feed', f);
+  const updateFeed = (f)  => patch('feed', f.id, f);
+  const removeFeed = (id) => drop('feed', id);
 
-  const addFeedStock = (id, qty) => setFeed(p => save('ft_feed', p.map(f => {
-    if (f.id !== id) return f;
-    const newStock = f.stock + qty;
-    const count = Math.max(1, livestock.filter(a => a.species === f.species).length);
-    return { ...f, stock: newStock, daysLeft: Math.round(newStock / (f.dailyPerHead * count)) };
-  })));
+  const addFeedStock = async (id, qty) => {
+    const item = state.feed.find(f => f.id === id);
+    if (!item) return;
+    const stock = (item.stock || 0) + qty;
+    const count = Math.max(1, state.livestock.filter(a => a.species === item.species).length);
+    const daysLeft = item.dailyPerHead > 0 ? Math.round(stock / (item.dailyPerHead * count)) : 0;
+    await patch('feed', id, { ...item, stock, daysLeft });
+  };
 
-  /* ── Equipment ── */
-  const addEquipment    = (e)  => setEquipment(p => save('ft_equipment', [...p, { ...e, id: `eq-${newId()}` }]));
-  const updateEquipment = (e)  => setEquipment(p => save('ft_equipment', p.map(x => x.id === e.id ? e : x)));
-  const removeEquipment = (id) => setEquipment(p => save('ft_equipment', p.filter(x => x.id !== id)));
+  /* ── Equipment & tickets ── */
+  const addEquipment    = (e)  => put('equipment', e);
+  const updateEquipment = (e)  => patch('equipment', e.id, e);
+  const removeEquipment = (id) => drop('equipment', id);
+
+  const addTicket    = (t)  => put('tickets', t, { prepend: true });
+  const updateTicket = (t)  => patch('tickets', t.id, t);  // updatedAt is set by the database
+  const removeTicket = (id) => drop('tickets', id);
 
   /* ── Devices ── */
-  const addDevice    = (d)  => setDevices(p => save('ft_devices', [...p, { ...d, id: `dev-${newId()}`, status: 'pending', lastSeen: null, createdAt: new Date().toISOString() }]));
-  const updateDevice = (d)  => setDevices(p => save('ft_devices', p.map(x => x.id === d.id ? d : x)));
-  const removeDevice = (id) => setDevices(p => save('ft_devices', p.filter(x => x.id !== id)));
+  const addDevice    = (d)  => put('devices', { ...d, status: 'pending', lastSeen: null });
+  const updateDevice = (d)  => patch('devices', d.id, d);
+  const removeDevice = (id) => drop('devices', id);
 
-  /* ── Tickets ── */
-  const addTicket    = (t)  => setTickets(p => save('ft_tickets', [{ ...t, id: `tk-${newId()}`, createdAt: new Date().toISOString().slice(0,10), updatedAt: new Date().toISOString().slice(0,10) }, ...p]));
-  const updateTicket = (t)  => setTickets(p => save('ft_tickets', p.map(x => x.id === t.id ? { ...t, updatedAt: new Date().toISOString().slice(0,10) } : x)));
-  const removeTicket = (id) => setTickets(p => save('ft_tickets', p.filter(x => x.id !== id)));
+  /* ── Farm plan ── */
+  const addZone    = (z)  => put('zones', z);
+  const updateZone = (z)  => patch('zones', z.id, z);
+  const removeZone = (id) => drop('zones', id);
+
+  const setFarmProfile  = (v) => saveSingleton('farmProfile', v);
+  const setFarmBoundary = (v) => saveSingleton('farmBoundary', v);
+
+  /* ── One-time import of data left in this browser ── */
+  const importLegacy = useCallback(async (payload) => {
+    try {
+      const res = await call({ collection: 'livestock', op: 'import', payload });
+      await reload();
+      return { ok: true, counts: res.counts || {} };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }, [reload]);
 
   return (
     <DataContext.Provider value={{
-      livestock,     addAnimal,    updateAnimal,  removeAnimal,
-      health,        addHealth,    updateHealth,  removeHealth,
-      sensors,       addSensor,    updateSensor,  removeSensor,
-      manualReadings, addManualReading, removeManualReading, clearManualOverride,
-      feed,          addFeed,      updateFeed,    removeFeed,   addFeedStock,
-      equipment,     addEquipment, updateEquipment, removeEquipment,
-      devices,       addDevice,    updateDevice,  removeDevice,
-      tickets,       addTicket,    updateTicket,  removeTicket,
-      farmBoundary,  setFarmBoundary,
-      farmProfile,   setFarmProfile,
-      zones,         addZone, updateZone, removeZone,
-      inspections,   addInspection, updateInspection, removeInspection,
-      harvests,      addHarvest,    updateHarvest,    removeHarvest,
-      colonyEvents,  addColonyEvent, updateColonyEvent, removeColonyEvent,
+      ...state,
+      loading, error, reload, importLegacy,
+      addAnimal, updateAnimal, removeAnimal,
+      addHealth, updateHealth, removeHealth,
+      addSensor, updateSensor, removeSensor,
+      addManualReading, removeManualReading, clearManualOverride,
+      addFeed, updateFeed, removeFeed, addFeedStock,
+      addEquipment, updateEquipment, removeEquipment,
+      addDevice, updateDevice, removeDevice,
+      addTicket, updateTicket, removeTicket,
+      setFarmBoundary, setFarmProfile,
+      addZone, updateZone, removeZone,
+      addInspection, updateInspection, removeInspection,
+      addHarvest, updateHarvest, removeHarvest,
+      addColonyEvent, updateColonyEvent, removeColonyEvent,
     }}>
       {children}
     </DataContext.Provider>

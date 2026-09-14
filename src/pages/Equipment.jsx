@@ -284,7 +284,9 @@ function TicketCard({ ticket, onEdit, onDelete, onStatusChange }) {
               {ticket.assignedTo}
             </span>
           )}
-          <span>{ticket.createdAt}</span>
+          <span>{ticket.createdAt
+            ? new Date(ticket.createdAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—'}</span>
         </div>
       </div>
 

@@ -209,6 +209,7 @@ model Sensor {
   initialValue Float?
   status       String   @default("normal") // normal | warn | alert
   isManual     Boolean  @default(false)
+  lastManualAt DateTime?
   isCustom     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -246,7 +247,9 @@ model Device {
   sensorId          String?
   sensor            Sensor?   @relation(fields: [sensorId], references: [id], onDelete: SetNull)
   protocol          String    @default("MQTT")
-  tokenHash         String? // device token stored hashed, never in the clear
+  // Retrievable on purpose: the Sensors page redisplays it in the firmware
+  // snippet long after setup. Scoped to the owning account.
+  token             String?
   reportingInterval Int       @default(60)
   status            String    @default("pending") // pending | online | offline
   lastSeen          DateTime?
@@ -268,6 +271,7 @@ model FeedItem {
   stock        Float    @default(0)
   unit         String   @default("kg")
   costPerKg    Float    @default(0)
+  daysLeft     Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

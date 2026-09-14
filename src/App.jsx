@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { DataGate } from './components/DataGate';
 
 import Home        from './pages/Home';
 import Login       from './pages/Login';
@@ -69,7 +70,7 @@ function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Protected app routes */}
-      <Route element={<ProtectedRoute><DataProvider><Layout /></DataProvider></ProtectedRoute>}>
+      <Route element={<ProtectedRoute><DataProvider><DataGate><Layout /></DataGate></DataProvider></ProtectedRoute>}>
         <Route path="/dashboard"   element={<Dashboard />} />
         <Route path="/livestock"   element={<Livestock />} />
         <Route path="/health"      element={<Health />} />

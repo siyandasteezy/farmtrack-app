@@ -1,22 +1,24 @@
 import { randomUUID } from 'node:crypto';
+import { prisma } from '../lib/db.js';
+import { json, withUser } from '../lib/auth.js';
 
 /**
- * Creates a Yoco Checkout for one month of isibaya Pro and returns the
- * hosted-page redirect URL. The Yoco SECRET key lives only here, server-side
- * — it must never be exposed to the browser.
+ * Creates a Yoco Checkout for one month of isibaya Pro and returns the hosted
+ * page's redirect URL. The Yoco SECRET key lives only here, server-side.
  *
- * Env: YOCO_SECRET_KEY (sk_test_… / sk_live_…), optional APP_URL.
- * Endpoint: POST /.netlify/functions/yoco-create-checkout  ->  { id, redirectUrl }
+ * The checkout is recorded against the signed-in user as PENDING, so the
+ * payment can later be tied back to an account without trusting anything the
+ * browser reports.
+ *
+ * Env: YOCO_SECRET_KEY, optional APP_URL.
+ * POST /.netlify/functions/yoco-create-checkout -> { id, redirectUrl }
  */
 
 const YOCO_API = 'https://payments.yoco.com/api';
-const PLAN_AMOUNT_CENTS = 180_000; // R1,800.00
-const PLAN_CURRENCY = 'ZAR';
+export const PLAN_AMOUNT_CENTS = 180_000; // R1,800.00
+export const PLAN_CURRENCY = 'ZAR';
 
-const json = (obj, status = 200) =>
-  new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
-
-export default async (req) => {
+export default withUser(async (req, user) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const key = process.env.YOCO_SECRET_KEY;
@@ -24,11 +26,7 @@ export default async (req) => {
     return json({ error: 'Payments are not configured yet (YOCO_SECRET_KEY missing).' }, 503);
   }
 
-  let body = {};
-  try { body = await req.json(); } catch { /* body is optional */ }
-
   const origin = process.env.APP_URL || new URL(req.url).origin;
-  const userId = typeof body.userId === 'string' ? body.userId : 'guest';
 
   try {
     const res = await fetch(`${YOCO_API}/checkouts`, {
@@ -44,7 +42,7 @@ export default async (req) => {
         successUrl: `${origin}/payment?yoco=success`,
         cancelUrl: `${origin}/payment?yoco=cancelled`,
         failureUrl: `${origin}/payment?yoco=failed`,
-        metadata: { userId, product: 'isibaya-monthly' },
+        metadata: { userId: user.id, product: 'isibaya-monthly' },
       }),
     });
 
@@ -53,9 +51,20 @@ export default async (req) => {
       console.error('Yoco checkout failed', res.status, data);
       return json({ error: 'Could not start the payment — please try again.' }, 502);
     }
+
+    await prisma.payment.create({
+      data: {
+        userId: user.id,
+        yocoCheckoutId: data.id,
+        amountCents: PLAN_AMOUNT_CENTS,
+        currency: PLAN_CURRENCY,
+        status: 'PENDING',
+      },
+    });
+
     return json({ id: data.id, redirectUrl: data.redirectUrl }, 201);
   } catch (err) {
     console.error('Yoco checkout error', err);
     return json({ error: 'Could not reach the payment provider.' }, 502);
   }
-};
+});

@@ -32,7 +32,7 @@ const blobsEl = (
 );
 
 export default function Payment() {
-  const { user, activatePlan, activateTrial, logout } = useAuth();
+  const { user, activatePlan, logout } = useAuth();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const yocoResult = params.get('yoco'); // success | cancelled | failed
@@ -202,8 +202,9 @@ export default function Payment() {
 
                   {error && <AlertBox color="red" className="mb-5">{error}</AlertBox>}
 
-                  <AlertBox color="green" className="mb-6">
-                    Prefer to try first? Start a 14-day free trial — you won't be charged until it ends.
+                  <AlertBox color="amber" className="mb-6">
+                    Your 14-day free trial has ended. Subscribe to carry on using isibaya —
+                    your farm records are kept safe in the meantime.
                   </AlertBox>
 
                   {/* Order summary */}
@@ -227,10 +228,6 @@ export default function Payment() {
                       ) : (
                         <><Lock size={15} /> Pay {PRICE} with Yoco</>
                       )}
-                    </Btn>
-                    <Btn variant="secondary" size="lg" className="w-full"
-                      onClick={() => { activateTrial(); nav('/dashboard', { replace: true }); }}>
-                      Start free trial first
                     </Btn>
                   </div>
 

@@ -21,16 +21,36 @@ import Equipment   from './pages/Equipment';
 import Tracking    from './pages/Tracking';
 import FarmPlan    from './pages/FarmPlan';
 
+/* Restoring the session is a round trip to the server, so routes have to wait
+   for it — deciding while `loading` is true would bounce a signed-in visitor
+   to /login on every refresh. */
+function SessionGate() {
+  return (
+    <div className="min-h-screen flex items-center justify-center"
+      style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 40%, #bbf7d0 100%)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <svg className="animate-spin h-7 w-7" viewBox="0 0 24 24" fill="none" style={{ color: '#15803d' }}>
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        <p className="text-sm font-medium text-green-900/70">Loading your farm…</p>
+      </div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <SessionGate />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.plan === 'unpaid') return <Navigate to="/payment" replace />;
+  if (!user.active) return <Navigate to="/payment" replace />;
   return children;
 }
 
 function AuthRoute({ children }) {
-  const { user } = useAuth();
-  if (user) return <Navigate to={user.plan === 'unpaid' ? '/payment' : '/dashboard'} replace />;
+  const { user, loading } = useAuth();
+  if (loading) return <SessionGate />;
+  if (user) return <Navigate to={user.active ? '/dashboard' : '/payment'} replace />;
   return children;
 }
 

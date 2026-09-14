@@ -7,6 +7,13 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Netlify treats every environment variable as a secret and fails the build
+  # if it finds the value in the repo. These two are public by definition —
+  # MAIL_FROM is the visible From header on every email, and APP_URL is the
+  # site's own address, which appears in index.html, sitemap.xml and robots.txt.
+  # The genuine secrets (DATABASE_URL, AUTH_SECRET, YOCO_SECRET_KEY,
+  # RESEND_API_KEY) are deliberately NOT listed here and stay scanned.
+  SECRETS_SCAN_OMIT_KEYS = "MAIL_FROM,APP_URL"
 
 # Serverless backend (holds the Yoco secret key; creates/verifies checkouts)
 [functions]

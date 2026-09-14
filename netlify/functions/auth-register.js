@@ -1,8 +1,10 @@
+import { randomBytes, createHash } from 'node:crypto';
 import { prisma } from '../lib/db.js';
 import {
   json, hashPassword, createSessionToken, sessionCookie,
   publicUser, trialEnd, initialsOf, normaliseEmail, validPassword,
 } from '../lib/auth.js';
+import { sendEmail, confirmationEmail } from '../lib/email.js';
 
 /**
  * POST /.netlify/functions/auth-register
@@ -38,6 +40,26 @@ export default async (req) => {
         trialEndsAt: trialEnd(),
       },
     });
+
+    // Send the confirmation straight away, but never fail registration over
+    // it — the account exists, and the email can be resent from the profile.
+    try {
+      const origin = process.env.APP_URL || new URL(req.url).origin;
+      const raw = randomBytes(32).toString('hex');
+      await prisma.emailVerification.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          tokenHash: createHash('sha256').update(raw).digest('hex'),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+      const mail = confirmationEmail({ name: user.name, link: `${origin}/verify-email?token=${raw}` });
+      const sent = await sendEmail({ to: user.email, ...mail });
+      if (!sent.ok) console.error('welcome confirmation not sent:', sent.error);
+    } catch (mailErr) {
+      console.error('welcome confirmation failed', mailErr);
+    }
 
     const token = await createSessionToken(user.id);
     return json({ user: publicUser(user) }, 201, { 'Set-Cookie': sessionCookie(req, token) });

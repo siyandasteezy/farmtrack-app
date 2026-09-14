@@ -6,6 +6,7 @@ import Home        from './pages/Home';
 import Login       from './pages/Login';
 import Register    from './pages/Register';
 import Payment     from './pages/Payment';
+import VerifyEmail from './pages/VerifyEmail';
 import { Layout }  from './components/Layout';
 import Dashboard   from './pages/Dashboard';
 import Livestock   from './pages/Livestock';
@@ -64,6 +65,8 @@ function AppRoutes() {
       <Route path="/login"    element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><Register /></AuthRoute>} />
       <Route path="/payment"  element={<Payment />} />
+      {/* Public: the link is often opened in a different browser */}
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Protected app routes */}
       <Route element={<ProtectedRoute><DataProvider><Layout /></DataProvider></ProtectedRoute>}>

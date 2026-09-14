@@ -26,6 +26,15 @@ export default withUser(async (req, user) => {
     return json({ error: 'Payments are not configured yet (YOCO_SECRET_KEY missing).' }, 503);
   }
 
+  // Money is about to change hands, and the receipt and any billing notice go
+  // to this address — so it has to be one the account holder actually controls.
+  if (!user.emailVerified) {
+    return json({
+      error: 'Please confirm your email address before subscribing.',
+      needsEmailVerification: true,
+    }, 403);
+  }
+
   const origin = process.env.APP_URL || new URL(req.url).origin;
 
   try {

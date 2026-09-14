@@ -40,6 +40,21 @@ export default function Payment() {
   const [step, setStep] = useState('plan');          // plan | verifying | success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Set when the server refuses a checkout because the address is unconfirmed,
+  // so the page can offer a way out instead of a dead end.
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resend, setResend] = useState({ busy: false, msg: '' });
+
+  const resendVerification = async () => {
+    setResend({ busy: true, msg: '' });
+    try {
+      const res = await fetch(`${FN}/auth-send-verification`, { method: 'POST', credentials: 'same-origin' });
+      const data = await res.json().catch(() => null);
+      setResend({ busy: false, msg: res.ok ? `Sent to ${data?.sentTo || user?.email}. Check your inbox.` : (data?.error || 'Could not send the email.') });
+    } catch {
+      setResend({ busy: false, msg: 'You need to be online to send the confirmation email.' });
+    }
+  };
 
   // ── Handle the return from Yoco's hosted checkout ──────────────
   const verify = useCallback(async () => {
@@ -88,12 +103,13 @@ export default function Payment() {
     try {
       const res = await fetch(`${FN}/yoco-create-checkout`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.email || user?.id || 'guest' }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.redirectUrl) {
         setError(data?.error || 'Could not start the payment — please try again.');
+        setNeedsVerification(!!data?.needsEmailVerification);
         setLoading(false);
         return;
       }
@@ -201,6 +217,22 @@ export default function Payment() {
                   </p>
 
                   {error && <AlertBox color="red" className="mb-5">{error}</AlertBox>}
+
+                  {needsVerification && (
+                    <div className="rounded-xl p-4 mb-5" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                      <p className="text-sm font-bold text-amber-800 mb-1">Confirm your email first</p>
+                      <p className="text-xs text-amber-700 leading-relaxed mb-3">
+                        Your receipt and any billing notices go to <strong>{user?.email}</strong>,
+                        so we need to know it reaches you before taking payment.
+                      </p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <Btn variant="secondary" size="sm" onClick={resendVerification} disabled={resend.busy}>
+                          {resend.busy ? 'Sending…' : 'Resend confirmation email'}
+                        </Btn>
+                        {resend.msg && <span className="text-xs text-amber-800">{resend.msg}</span>}
+                      </div>
+                    </div>
+                  )}
 
                   <AlertBox color="amber" className="mb-6">
                     Your 14-day free trial has ended. Subscribe to carry on using isibaya —

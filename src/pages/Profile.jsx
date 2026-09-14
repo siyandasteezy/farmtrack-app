@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserRound, KeyRound, Check } from 'lucide-react';
+import { UserRound, KeyRound, Check, MailWarning } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { FormField, Input, Btn } from '../components/FormField';
 import { AlertBox } from '../components/AlertBox';
@@ -30,6 +30,22 @@ export default function Profile() {
   const [pwMsg, setPwMsg] = useState('');
   const [pwError, setPwError] = useState('');
   const [pwBusy, setPwBusy] = useState(false);
+
+  const [verify, setVerify] = useState({ busy: false, sent: '', error: '' });
+
+  const sendVerification = async () => {
+    setVerify({ busy: true, sent: '', error: '' });
+    try {
+      const res = await fetch('/.netlify/functions/auth-send-verification', {
+        method: 'POST', credentials: 'same-origin',
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setVerify({ busy: false, sent: '', error: data?.error || 'Could not send the email.' }); return; }
+      setVerify({ busy: false, error: '', sent: `Confirmation sent to ${data?.sentTo || user.email}. The link expires in 24 hours.` });
+    } catch {
+      setVerify({ busy: false, sent: '', error: 'You need to be online to send the confirmation email.' });
+    }
+  };
 
   const set = (k) => (e) => { setError(''); setSaved(''); setForm(p => ({ ...p, [k]: e.target.value })); };
   const setP = (k) => (e) => { setPwError(''); setPwMsg(''); setPw(p => ({ ...p, [k]: e.target.value })); };
@@ -99,6 +115,29 @@ export default function Profile() {
           </span>
         </div>
       </div>
+
+      {/* Email confirmation — required before subscribing, since receipts and
+          billing notices go to this address. */}
+      {!user.emailVerified && (
+        <div style={card} className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <MailWarning size={20} style={{ color: '#b45309' }} />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-slate-900">Confirm your email address</div>
+            <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+              We sent a link to <strong className="text-slate-700">{user.email}</strong> when you signed up.
+              You'll need to confirm it before you can subscribe — receipts and billing notices go there.
+            </p>
+            {verify.sent  && <p className="text-sm font-medium text-green-700 mt-2">{verify.sent}</p>}
+            {verify.error && <p className="text-sm font-medium text-red-600 mt-2">{verify.error}</p>}
+          </div>
+          <Btn variant="secondary" onClick={sendVerification} disabled={verify.busy}>
+            {verify.busy ? 'Sending…' : 'Resend email'}
+          </Btn>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Details */}

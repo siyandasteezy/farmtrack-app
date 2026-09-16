@@ -23,6 +23,8 @@ export default function Profile() {
     email: user?.email || '',
     avatar: user?.avatar || '',
   });
+  const [enterprises, setEnterprises] = useState(
+    () => (user?.enterprises?.length ? user.enterprises : ['livestock']));
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
 
@@ -52,13 +54,17 @@ export default function Profile() {
 
   if (!user) return null;
 
+  const current = user.enterprises?.length ? user.enterprises : ['livestock'];
+  const entChanged =
+    enterprises.length !== current.length || enterprises.some(e => !current.includes(e));
+
   const dirty =
     form.name !== user.name || form.farm !== user.farm ||
-    form.email !== user.email || form.avatar !== user.avatar;
+    form.email !== user.email || form.avatar !== user.avatar || entChanged;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setError(''); setSaved('');
-    const res = updateProfile(form);
+    const res = await updateProfile({ ...form, enterprises });
     if (!res.ok) { setError(res.error); return; }
     setSaved(res.emailChanged
       ? 'Profile updated. Your email changed, so it needs confirming again.'
@@ -160,6 +166,33 @@ export default function Profile() {
               <Input maxLength={2} value={form.avatar} onChange={set('avatar')} className="w-24" />
             </FormField>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">What you farm</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { key: 'livestock', emoji: '🐄', label: 'Livestock' },
+                  { key: 'crops',     emoji: '🌱', label: 'Crops' },
+                ].map(opt => {
+                  const on = enterprises.includes(opt.key);
+                  return (
+                    <button key={opt.key} type="button"
+                      onClick={() => { setError(''); setSaved(''); setEnterprises(prev =>
+                        prev.includes(opt.key) ? prev.filter(x => x !== opt.key) : [...prev, opt.key]); }}
+                      className="text-left rounded-xl px-3.5 py-3 border-2 transition-all"
+                      style={on
+                        ? { borderColor: '#16a34a', background: '#f0fdf4' }
+                        : { borderColor: '#e2e8f0', background: '#fff' }}>
+                      <span className="mr-1.5">{opt.emoji}</span>
+                      <span className="text-sm font-bold text-slate-800">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-400">
+                Changes which sections appear. Nothing you've recorded is deleted.
+              </p>
+            </div>
+
             {error && <AlertBox color="red">{error}</AlertBox>}
             {saved && (
               <AlertBox color="green">
@@ -171,7 +204,11 @@ export default function Profile() {
               <Btn onClick={handleSave} disabled={!dirty}>Save changes</Btn>
               {dirty && (
                 <Btn variant="secondary"
-                  onClick={() => { setForm({ name: user.name, farm: user.farm, email: user.email, avatar: user.avatar }); setError(''); setSaved(''); }}>
+                  onClick={() => {
+                    setForm({ name: user.name, farm: user.farm, email: user.email, avatar: user.avatar });
+                    setEnterprises(current);
+                    setError(''); setSaved('');
+                  }}>
                   Cancel
                 </Btn>
               )}

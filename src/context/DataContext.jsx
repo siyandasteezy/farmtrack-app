@@ -14,7 +14,7 @@ const ENDPOINT = '/.netlify/functions/data';
 const EMPTY = {
   livestock: [], health: [], inspections: [], harvests: [], colonyEvents: [],
   sensors: [], manualReadings: [], feed: [], equipment: [], tickets: [],
-  devices: [], zones: [],
+  devices: [], zones: [], plantings: [],
   farmProfile: { name: '', address: '', country: '', area: '', areaUnit: 'ha', lat: '', lng: '' },
   farmBoundary: { type: 'circle', lat: -33.7300, lng: 19.0100, radius: 450 },
 };
@@ -223,6 +223,11 @@ export function DataProvider({ children }) {
   const updateZone = (z)  => patch('zones', z.id, z);
   const removeZone = (id) => drop('zones', id);
 
+  /* ── Crops ── */
+  const addPlanting    = (p)  => put('plantings', p, { prepend: true });
+  const updatePlanting = (p)  => patch('plantings', p.id, p);
+  const removePlanting = (id) => drop('plantings', id);
+
   const setFarmProfile  = (v) => saveSingleton('farmProfile', v);
   const setFarmBoundary = (v) => saveSingleton('farmBoundary', v);
 
@@ -251,6 +256,7 @@ export function DataProvider({ children }) {
       addTicket, updateTicket, removeTicket,
       setFarmBoundary, setFarmProfile,
       addZone, updateZone, removeZone,
+      addPlanting, updatePlanting, removePlanting,
       addInspection, updateInspection, removeInspection,
       addHarvest, updateHarvest, removeHarvest,
       addColonyEvent, updateColonyEvent, removeColonyEvent,

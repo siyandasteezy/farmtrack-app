@@ -1,27 +1,35 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Beef, HeartPulse, Activity,
-  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin, Map, Hexagon,
+  Wheat, Scale, BarChart2, Wrench, LogOut, X, CreditCard, MapPin, Map, Hexagon, Sprout,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
+/* `only` limits an item to farms running that enterprise. Items without it
+   are shared and always shown. This hides navigation, never data — a farm
+   that switches crops off keeps every planting it recorded. */
 const NAV = [
   { to: '/farm-plan',   label: 'Farm Plan',        Icon: Map },
   { to: '/dashboard',   label: 'Dashboard',       Icon: LayoutDashboard },
-  { to: '/livestock',   label: 'Livestock',        Icon: Beef },
-  { to: '/health',      label: 'Health & Vet',     Icon: HeartPulse },
-  { to: '/apiary',      label: 'Apiary',           Icon: Hexagon },
+  { to: '/livestock',   label: 'Livestock',        Icon: Beef,       only: 'livestock' },
+  { to: '/health',      label: 'Health & Vet',     Icon: HeartPulse, only: 'livestock' },
+  { to: '/apiary',      label: 'Apiary',           Icon: Hexagon,    only: 'livestock' },
+  { to: '/crops',       label: 'Crops',            Icon: Sprout,     only: 'crops' },
   { to: '/sensors',     label: 'Sensors',          Icon: Activity },
-  { to: '/feed',        label: 'Feed & Nutrition', Icon: Wheat },
+  { to: '/feed',        label: 'Feed & Nutrition', Icon: Wheat,      only: 'livestock' },
   { to: '/regulations', label: 'Regulations',      Icon: Scale },
   { to: '/reports',     label: 'Reports',          Icon: BarChart2 },
   { to: '/equipment',   label: 'Equipment',        Icon: Wrench },
-  { to: '/tracking',    label: 'Animal Tracking',  Icon: MapPin },
+  { to: '/tracking',    label: 'Animal Tracking',  Icon: MapPin,     only: 'livestock' },
 ];
 
 export function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
+  // Default to livestock so an account created before enterprises existed
+  // still sees the modules it has always had.
+  const enterprises = user?.enterprises?.length ? user.enterprises : ['livestock'];
+  const nav = NAV.filter(item => !item.only || enterprises.includes(item.only));
 
   return (
     <>
@@ -78,7 +86,7 @@ export function Sidebar({ open, onClose }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 flex flex-col gap-0.5 overflow-y-auto">
-          {NAV.map(({ to, label, Icon }) => (
+          {nav.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}

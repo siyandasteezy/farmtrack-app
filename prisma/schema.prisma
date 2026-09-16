@@ -25,6 +25,10 @@ model User {
   avatar        String?
   role          String   @default("Owner")
   emailVerified Boolean  @default(false)
+  /// Which enterprises this farm runs: "livestock" and/or "crops". Controls
+  /// which modules appear, never what data is kept — turning one off tidies
+  /// the navigation and leaves every record in place.
+  enterprises   String[] @default(["livestock"])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -48,6 +52,7 @@ model User {
   tickets       Ticket[]
   devices       Device[]
   zones         Zone[]
+  plantings     Planting[]
   farmProfile   FarmProfile?
   farmBoundary  FarmBoundary?
 }
@@ -190,6 +195,38 @@ model ColonyEvent {
 
   @@index([userId, date])
   @@index([userId, hiveTag])
+}
+
+// ── Crops ───────────────────────────────────────────────────────────────
+
+/// A crop growing in a place for a season — the atomic unit for crops, the
+/// way an Animal is for livestock and a hive is for bees. Nobody tracks an
+/// individual maize plant.
+model Planting {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String
+  crop      String
+  variety   String?
+  category  String // Grain | Vegetable | Fruit
+  /// Free text rather than a Zone relation, so a planting can name a field
+  /// that has not been drawn on the farm plan yet.
+  location  String?
+  areaHa    Float?
+  /// True for orchards and vines: established once, harvested many seasons.
+  /// False for annuals, which run plant -> harvest -> done.
+  perennial Boolean   @default(false)
+  plantCount Int?
+  plantedAt DateTime?
+  expectedHarvest DateTime?
+  status    String    @default("Growing") // Planned | Growing | Harvested | Failed | Removed
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, code])
+  @@index([userId, status])
 }
 
 // ── Sensors & devices ───────────────────────────────────────────────────

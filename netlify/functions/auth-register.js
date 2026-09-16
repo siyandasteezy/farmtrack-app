@@ -26,6 +26,14 @@ export default async (req) => {
   const pwErr = validPassword(password);
   if (pwErr) return json({ error: pwErr }, 400);
 
+  // What the farm runs. Anything unrecognised falls back to livestock so a
+  // malformed request can never leave an account with no modules at all.
+  const allowed = ['livestock', 'crops'];
+  const picked = Array.isArray(body.enterprises)
+    ? body.enterprises.filter(e => allowed.includes(e))
+    : [];
+  const enterprises = picked.length ? picked : ['livestock'];
+
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return json({ error: 'An account with that email already exists.' }, 409);
@@ -37,6 +45,7 @@ export default async (req) => {
         farm,
         passwordHash: await hashPassword(password),
         avatar: initialsOf(name),
+        enterprises,
         trialEndsAt: trialEnd(),
       },
     });

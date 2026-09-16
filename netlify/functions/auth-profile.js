@@ -24,6 +24,14 @@ export default withUser(async (req, user) => {
   if (!name) return json({ error: 'Name is required.' }, 400);
   if (!email || !email.includes('@')) return json({ error: 'A valid email is required.' }, 400);
 
+  // Changing this only changes which modules are shown; records for a
+  // switched-off enterprise stay exactly where they are.
+  const allowed = ['livestock', 'crops'];
+  const picked = Array.isArray(body.enterprises)
+    ? body.enterprises.filter(e => allowed.includes(e))
+    : null;
+  const enterprises = picked && picked.length ? picked : null;
+
   const emailChanged = email !== user.email;
 
   try {
@@ -37,6 +45,7 @@ export default withUser(async (req, user) => {
       data: {
         name, farm, email,
         avatar: avatar || initialsOf(name),
+        ...(enterprises ? { enterprises } : {}),
         ...(emailChanged ? { emailVerified: false } : {}),
       },
     });

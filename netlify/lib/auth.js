@@ -112,6 +112,7 @@ export function publicUser(user) {
     avatar: user.avatar,
     role: user.role,
     emailVerified: user.emailVerified,
+    enterprises: user.enterprises?.length ? user.enterprises : ['livestock'],
     joinedAt: user.createdAt?.toISOString().slice(0, 10),
     plan: access.plan,
     planUntil: access.until,

@@ -9,6 +9,9 @@ export default function Register() {
   const { register } = useAuth();
   const nav = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', farm: '', password: '', confirm: '' });
+  // What the farm runs. Both is common in South Africa, so this is a
+  // multiple choice rather than a fork — and it can be changed later.
+  const [enterprises, setEnterprises] = useState(['livestock']);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,9 +23,10 @@ export default function Register() {
     setError('');
     if (form.password !== form.confirm) { setError('Passwords do not match.'); return; }
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (enterprises.length === 0) { setError('Choose at least one — livestock, crops, or both.'); return; }
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    const res = await register({ name: form.name, email: form.email, farm: form.farm, password: form.password });
+    const res = await register({ name: form.name, email: form.email, farm: form.farm, password: form.password, enterprises });
     setLoading(false);
     if (!res.ok) { setError(res.error); return; }
     nav('/payment', { replace: true });
@@ -97,6 +101,36 @@ export default function Register() {
                 value={form.confirm} onChange={set('confirm')} required
               />
             </FormField>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">What do you farm?</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { key: 'livestock', emoji: '🐄', label: 'Livestock', sub: 'Cattle, sheep, goats, bees' },
+                  { key: 'crops',     emoji: '🌱', label: 'Crops',     sub: 'Fruit, veg and grain' },
+                ].map(opt => {
+                  const on = enterprises.includes(opt.key);
+                  return (
+                    <button key={opt.key} type="button"
+                      onClick={() => setEnterprises(prev => {
+                        setError('');
+                        return prev.includes(opt.key)
+                          ? prev.filter(x => x !== opt.key)
+                          : [...prev, opt.key];
+                      })}
+                      className="text-left rounded-2xl p-3.5 border-2 transition-all"
+                      style={on
+                        ? { borderColor: '#16a34a', background: '#f0fdf4' }
+                        : { borderColor: '#e2e8f0', background: '#fff' }}>
+                      <div className="text-xl leading-none mb-1.5">{opt.emoji}</div>
+                      <div className="text-sm font-bold text-slate-800">{opt.label}</div>
+                      <div className="text-[11px] text-slate-400 leading-snug mt-0.5">{opt.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-400">Pick both if you do both — you can change this later.</p>
+            </div>
 
             <Btn type="submit" size="lg" className="w-full mt-2" disabled={loading}>
               {loading ? (

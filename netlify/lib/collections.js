@@ -25,7 +25,9 @@ const date = (v) => {
 
 /* Serialising back: date-only columns become 'YYYY-MM-DD' because that is what
    <input type="date"> needs; timestamps stay ISO. */
-const DATE_ONLY = new Set(['date', 'dob', 'purchaseDate', 'lastService']);
+const DATE_ONLY = new Set([
+  'date', 'dob', 'purchaseDate', 'lastService', 'plantedAt', 'expectedHarvest',
+]);
 
 export const COLLECTIONS = {
   livestock: {
@@ -131,6 +133,16 @@ export const COLLECTIONS = {
     orderBy: { createdAt: 'asc' },
     fields: { name: str, type: str, color: str, border: str },
     required: ['name'],
+  },
+  plantings: {
+    model: 'planting',
+    orderBy: { createdAt: 'desc' },
+    fields: {
+      code: str, crop: str, variety: str, category: str, location: str,
+      areaHa: num, perennial: bool, plantCount: int,
+      plantedAt: date, expectedHarvest: date, status: str, notes: str,
+    },
+    required: ['code', 'crop', 'category'],
   },
 };
 

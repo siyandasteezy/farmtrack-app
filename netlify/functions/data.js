@@ -20,22 +20,31 @@ export default withUser(async (req, user) => {
 
 async function loadAll(user) {
   try {
+    // Every query goes out together. The singletons used to be awaited one at
+    // a time after the rest, which cost two extra round trips to the database
+    // on every load — noticeable when it isn't in the same region as this
+    // function.
     const names = Object.keys(COLLECTIONS);
-    const rows = await Promise.all(names.map(name => {
-      const spec = COLLECTIONS[name];
-      return prisma[spec.model].findMany({
-        where: { userId: user.id },
-        orderBy: spec.orderBy,
-      });
-    }));
+    const singles = Object.keys(SINGLETONS);
+
+    const [lists, ones] = await Promise.all([
+      Promise.all(names.map(name => {
+        const spec = COLLECTIONS[name];
+        return prisma[spec.model].findMany({
+          where: { userId: user.id },
+          orderBy: spec.orderBy,
+        });
+      })),
+      Promise.all(singles.map(name =>
+        prisma[SINGLETONS[name].model].findUnique({ where: { userId: user.id } })
+      )),
+    ]);
 
     const out = {};
-    names.forEach((name, i) => { out[name] = rows[i].map(serialise); });
-
-    for (const [name, spec] of Object.entries(SINGLETONS)) {
-      const row = await prisma[spec.model].findUnique({ where: { userId: user.id } });
-      out[name] = row ? serialise(row) : spec.empty;
-    }
+    names.forEach((name, i) => { out[name] = lists[i].map(serialise); });
+    singles.forEach((name, i) => {
+      out[name] = ones[i] ? serialise(ones[i]) : SINGLETONS[name].empty;
+    });
 
     return json(out);
   } catch (err) {

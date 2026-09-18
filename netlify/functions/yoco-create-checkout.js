@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/db.js';
 import { json, withUser } from '../lib/auth.js';
+import { PLAN_AMOUNT_CENTS, PLAN_CURRENCY } from '../lib/billing.js';
 
 /**
  * Creates a Yoco Checkout for one month of isibaya Pro and returns the hosted
@@ -15,8 +16,6 @@ import { json, withUser } from '../lib/auth.js';
  */
 
 const YOCO_API = 'https://payments.yoco.com/api';
-export const PLAN_AMOUNT_CENTS = 180_000; // R1,800.00
-export const PLAN_CURRENCY = 'ZAR';
 
 export default withUser(async (req, user) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);

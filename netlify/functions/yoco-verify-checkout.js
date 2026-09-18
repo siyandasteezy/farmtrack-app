@@ -1,5 +1,6 @@
 import { prisma } from '../lib/db.js';
 import { json, withUser, publicUser } from '../lib/auth.js';
+import { markPaidAndExtend } from '../lib/billing.js';
 
 /**
  * Confirms a checkout with Yoco (server-side, using the secret key) when the
@@ -9,18 +10,14 @@ import { json, withUser, publicUser } from '../lib/auth.js';
  * Access therefore comes from the database, not from the browser claiming to
  * have paid.
  *
+ * This is the fast path, so the user sees their subscription live the moment
+ * they return. yoco-webhook is the backstop for when they never come back; the
+ * two share markPaidAndExtend, which only lets one of them add the month.
+ *
  * POST /.netlify/functions/yoco-verify-checkout { checkoutId } -> { status, user }
  */
 
 const YOCO_API = 'https://payments.yoco.com/api';
-
-/** Extends from the later of now and any remaining paid period. */
-function nextPeriodEnd(current, now) {
-  const base = current && current > now ? new Date(current) : new Date(now);
-  const end = new Date(base);
-  end.setMonth(end.getMonth() + 1);
-  return end;
-}
 
 export default withUser(async (req, user) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -61,19 +58,9 @@ export default withUser(async (req, user) => {
       return json({ status });
     }
 
-    const now = new Date();
-    const periodEnd = nextPeriodEnd(user.subscriptionEndsAt, now);
-
-    const [, updatedUser] = await prisma.$transaction([
-      prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: 'PAID', paidAt: now, periodStart: now, periodEnd },
-      }),
-      prisma.user.update({
-        where: { id: user.id },
-        data: { subscriptionEndsAt: periodEnd },
-      }),
-    ]);
+    // If the webhook got here first this adds nothing and simply reports the
+    // account as it already stands.
+    const { user: updatedUser } = await markPaidAndExtend(payment.id, user.id);
 
     return json({ status: 'completed', user: publicUser(updatedUser) });
   } catch (err) {

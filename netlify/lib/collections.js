@@ -144,6 +144,19 @@ export const COLLECTIONS = {
     },
     required: ['code', 'crop', 'category'],
   },
+  fieldOps: {
+    model: 'fieldOperation',
+    orderBy: { date: 'desc' },
+    fields: {
+      date: date, plantingCode: str, crop: str, location: str, type: str,
+      product: str, activeIngredient: str, registrationNo: str, target: str,
+      dose: str, totalQuantity: num, quantityUnit: str, waterVolumeL: num,
+      phiDays: int, reiHours: int,
+      operator: str, equipment: str, windKph: num, conditions: str,
+      areaHa: num, cost: num, notes: str,
+    },
+    required: ['date', 'plantingCode', 'type'],
+  },
 };
 
 /* One row per user rather than a list. */

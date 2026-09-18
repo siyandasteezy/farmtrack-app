@@ -53,6 +53,7 @@ model User {
   devices       Device[]
   zones         Zone[]
   plantings     Planting[]
+  fieldOps      FieldOperation[]
   farmProfile   FarmProfile?
   farmBoundary  FarmBoundary?
 }
@@ -203,27 +204,27 @@ model ColonyEvent {
 /// way an Animal is for livestock and a hive is for bees. Nobody tracks an
 /// individual maize plant.
 model Planting {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code      String
-  crop      String
-  variety   String?
-  category  String // Grain | Vegetable | Fruit
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code            String
+  crop            String
+  variety         String?
+  category        String // Grain | Vegetable | Fruit
   /// Free text rather than a Zone relation, so a planting can name a field
   /// that has not been drawn on the farm plan yet.
-  location  String?
-  areaHa    Float?
+  location        String?
+  areaHa          Float?
   /// True for orchards and vines: established once, harvested many seasons.
   /// False for annuals, which run plant -> harvest -> done.
-  perennial Boolean   @default(false)
-  plantCount Int?
-  plantedAt DateTime?
+  perennial       Boolean   @default(false)
+  plantCount      Int?
+  plantedAt       DateTime?
   expectedHarvest DateTime?
-  status    String    @default("Growing") // Planned | Growing | Harvested | Failed | Removed
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  status          String    @default("Growing") // Planned | Growing | Harvested | Failed | Removed
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([userId, code])
   @@index([userId, status])
@@ -232,24 +233,24 @@ model Planting {
 // ── Sensors & devices ───────────────────────────────────────────────────
 
 model Sensor {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
-  category     String   @default("Environment")
+  category     String    @default("Environment")
   icon         String?
   location     String?
   unit         String
-  min          Float    @default(0)
-  max          Float    @default(100)
-  value        Float    @default(0)
+  min          Float     @default(0)
+  max          Float     @default(100)
+  value        Float     @default(0)
   initialValue Float?
-  status       String   @default("normal") // normal | warn | alert
-  isManual     Boolean  @default(false)
+  status       String    @default("normal") // normal | warn | alert
+  isManual     Boolean   @default(false)
   lastManualAt DateTime?
-  isCustom     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isCustom     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   readings ManualReading[]
   devices  Device[]
@@ -387,4 +388,64 @@ model FarmBoundary {
   lng    Float?
   radius Float?
   points Json? // polygon vertices when type = "polygon"
+}
+
+/// Anything done to a planting between going in the ground and coming off it.
+///
+/// Sprays are the reason this table exists. Agricultural remedies are
+/// registered under Act 36 of 1947 and every label carries an L-number and a
+/// withholding period; a packhouse, an export agent or a GLOBALG.A.P. auditor
+/// can ask to see the record for any consignment.
+model FieldOperation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date         DateTime
+  /// The planting's code rather than a foreign key, matching how hive
+  /// inspections reference a hive tag. Deleting a planting must not take its
+  /// spray history with it — that record may still be asked for.
+  plantingCode String
+  /// Copied from the planting when the record is written, so the history still
+  /// reads correctly if the planting is renamed or removed.
+  crop         String?
+  location     String?
+  type         String // Spray | Fertiliser | Irrigation | Cultivation | Pruning | Scouting | Other
+
+  // Product detail — sprays and fertilisers.
+  product          String?
+  activeIngredient String?
+  /// L-number off the product label (Act 36 of 1947).
+  registrationNo   String?
+  /// Pest, disease, weed or nutrient the application is aimed at.
+  target           String?
+  /// Free text, because labels quote rates in incompatible ways:
+  /// "1.5 L/ha", "200 mL/100 L", "35 g per tree".
+  dose             String?
+  totalQuantity    Float?
+  quantityUnit     String?
+  waterVolumeL     Float?
+
+  /// Days between application and the earliest legal harvest, off the label.
+  /// The whole point of the record: harvesting inside this window risks
+  /// residues above the MRL.
+  phiDays  Int?
+  /// Hours before workers may re-enter the treated block.
+  reiHours Int?
+
+  operator   String?
+  equipment  String?
+  /// Spray drift is mostly a wind problem, so the speed is kept as a number.
+  windKph    Float?
+  conditions String?
+
+  areaHa Float?
+  cost   Float?
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, plantingCode])
+  @@index([userId, date])
 }

@@ -6,6 +6,12 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use --lts && npm run dev"],
       "port": 5174
+    },
+    {
+      "name": "isibaya-netlify",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use --lts && npx -y netlify-cli@17 dev --port 8888 --targetPort 5174"],
+      "port": 8888
     }
   ]
 }

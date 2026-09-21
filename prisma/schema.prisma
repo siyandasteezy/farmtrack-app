@@ -54,6 +54,7 @@ model User {
   zones         Zone[]
   plantings     Planting[]
   fieldOps      FieldOperation[]
+  cropHarvests  CropHarvest[]
   farmProfile   FarmProfile?
   farmBoundary  FarmBoundary?
 }
@@ -442,6 +443,56 @@ model FieldOperation {
   areaHa Float?
   cost   Float?
   notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, plantingCode])
+  @@index([userId, date])
+}
+
+/// What actually came off a planting. Separate from Harvest, which is the
+/// apiary's honey and wax — the two share a word and nothing else.
+model CropHarvest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date         DateTime
+  /// By code, like FieldOperation, so a deleted planting does not take the
+  /// yield history with it.
+  plantingCode String
+  crop         String?
+  variety      String?
+  location     String?
+
+  /// Batch identifier that follows the produce off the farm. The thread a
+  /// recall or a buyer query is pulled by, so it stays on the record even
+  /// when nothing downstream uses it yet.
+  lotCode String?
+
+  quantity     Float
+  unit         String  @default("kg")
+  /// Class 1 / 2 / 3 per the Agricultural Product Standards Act 119 of 1990,
+  /// or Processing / Reject / Ungraded.
+  grade        String?
+  /// Packhouse, market, co-op, buyer, or own use.
+  destination  String?
+  /// Rand per unit, so income follows from quantity rather than being typed
+  /// twice and disagreeing with it.
+  pricePerUnit Float?
+
+  /// Area actually taken off, which is not always the whole planting —
+  /// a block can be picked over several passes.
+  areaHa   Float?
+  operator String?
+  notes    String?
+
+  /// True when this was recorded inside a withholding period and confirmed
+  /// anyway. Neither silently allowed nor hard-blocked: the farmer may be
+  /// correcting a mistyped interval or harvesting for a different purpose,
+  /// but an auditor should see that the exception was made deliberately.
+  withholdingOverride Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

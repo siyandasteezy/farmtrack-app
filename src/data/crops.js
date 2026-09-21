@@ -79,13 +79,72 @@ export const cropsByCategory = (category) =>
 
 /** PL-2026-001, continuing from whatever already exists. */
 export function generatePlantingCode(existing = []) {
+  return nextCode('PL', existing.map(p => p.code));
+}
+
+/** LOT-2026-001 — the batch identifier that leaves the farm with the produce. */
+export function generateLotCode(existing = []) {
+  return nextCode('LOT', existing.map(h => h.lotCode));
+}
+
+function nextCode(prefix, codes) {
   const year = new Date().getFullYear();
-  const prefix = `PL-${year}-`;
-  const highest = existing
-    .map(p => p.code)
-    .filter(c => typeof c === 'string' && c.startsWith(prefix))
-    .map(c => parseInt(c.slice(prefix.length), 10))
+  const full = `${prefix}-${year}-`;
+  const highest = codes
+    .filter(c => typeof c === 'string' && c.startsWith(full))
+    .map(c => parseInt(c.slice(full.length), 10))
     .filter(n => Number.isFinite(n))
     .reduce((max, n) => Math.max(max, n), 0);
-  return `${prefix}${String(highest + 1).padStart(3, '0')}`;
+  return `${full}${String(highest + 1).padStart(3, '0')}`;
+}
+
+/* Class 1/2/3 are the grades the Agricultural Product Standards Act 119 of
+   1990 puts on fresh produce. Grain is graded on its own scales, so the list
+   stays short and Ungraded is a first-class answer rather than a gap. */
+export const HARVEST_GRADES = [
+  'Ungraded', 'Class 1', 'Class 2', 'Class 3', 'Processing', 'Reject',
+];
+
+export const HARVEST_UNITS = ['kg', 't', 'bales', 'crates', 'bins', 'punnets', 'litres'];
+
+export const HARVEST_DESTINATIONS = [
+  'Packhouse', 'Fresh produce market', 'Co-op / silo', 'Direct buyer',
+  'Processor', 'Farm gate', 'Own use', 'Discarded',
+];
+
+/** The unit a crop is usually measured in, falling back to kilograms. */
+export const unitForCrop = (crop) => CROP_META[crop]?.unit || 'kg';
+
+/** Everything taken off one planting. */
+export const harvestsFor = (code, harvests = []) =>
+  harvests.filter(h => h.plantingCode === code);
+
+/**
+ * Yield for a planting, normalised to a single unit so the numbers add up.
+ *
+ * Harvests recorded in different units are kept apart rather than summed —
+ * adding crates to kilograms would produce a confident, meaningless total.
+ */
+export function yieldFor(code, harvests = [], planting = null) {
+  const rows = harvestsFor(code, harvests);
+  if (rows.length === 0) return null;
+
+  const byUnit = {};
+  let income = 0;
+  for (const h of rows) {
+    const unit = h.unit || 'kg';
+    byUnit[unit] = (byUnit[unit] || 0) + (h.quantity || 0);
+    if (h.pricePerUnit) income += (h.quantity || 0) * h.pricePerUnit;
+  }
+
+  // Per-hectare only makes sense against one unit and a known area.
+  const units = Object.keys(byUnit);
+  const area = planting?.areaHa || null;
+  const perHa = units.length === 1 && area ? byUnit[units[0]] / area : null;
+
+  return {
+    byUnit, units, income,
+    perHa, perHaUnit: units.length === 1 ? units[0] : null,
+    count: rows.length,
+  };
 }

@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { useData } from '../context/DataContext';
 import { SPECIES_META } from '../data/livestock';
+import { yieldFor } from '../data/crops';
+import { startOfDay } from '../data/fieldOps';
 import { StatCard } from '../components/StatCard';
 import { Btn } from '../components/FormField';
 import { Printer } from 'lucide-react';
@@ -36,7 +38,40 @@ const card = {
 };
 
 export default function Reports() {
-  const { livestock, health, harvests } = useData();
+  const { livestock, health, harvests, plantings, cropHarvests } = useData();
+
+  /* ── Crop yield ─────────────────────────────────────────────── */
+
+  /* Quantities are grouped by unit before anything is added up. Summing
+     crates into kilograms would give a confident number that means nothing,
+     so a farm measuring in mixed units sees each unit on its own line. */
+  const yieldByCrop = useMemo(() => {
+    const map = {};
+    cropHarvests.forEach(h => {
+      const key = `${h.crop || h.plantingCode}|${h.unit || 'kg'}`;
+      map[key] = (map[key] || 0) + (h.quantity || 0);
+    });
+    return Object.entries(map)
+      .map(([key, qty]) => {
+        const [crop, unit] = key.split('|');
+        return { crop, unit, qty: Math.round(qty * 100) / 100, label: `${crop} (${unit})` };
+      })
+      .sort((a, b) => b.qty - a.qty);
+  }, [cropHarvests]);
+
+  const cropIncome = useMemo(
+    () => cropHarvests.reduce((s, h) => s + ((h.pricePerUnit || 0) * (h.quantity || 0)), 0),
+    [cropHarvests]);
+
+  /* Per-planting, so a block's yield can be read against its area. */
+  const yieldByPlanting = useMemo(() => plantings
+    .map(p => ({ planting: p, stats: yieldFor(p.code, cropHarvests, p) }))
+    .filter(row => row.stats)
+    .sort((a, b) => (b.stats.perHa || 0) - (a.stats.perHa || 0)),
+    [plantings, cropHarvests]);
+
+  const flaggedHarvests = useMemo(
+    () => cropHarvests.filter(h => h.withholdingOverride), [cropHarvests]);
 
   /* ── Apiary output ──────────────────────────────────────────── */
   const honeyHarvests = useMemo(() => harvests.filter(h => h.product === 'Honey'), [harvests]);
@@ -159,8 +194,10 @@ export default function Reports() {
       {/* Each card is backed by real records — nothing is shown on a farm
           that hasn't recorded it yet. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon="🐄" label="Total livestock" value={livestock.length}
-          sub={`${speciesCounts.length} species`} color="green" />
+        {livestock.length > 0 && (
+          <StatCard icon="🐄" label="Total livestock" value={livestock.length}
+            sub={`${speciesCounts.length} species`} color="green" />
+        )}
         {weighed.length > 0 && (
           <StatCard icon="⚖️" label="Average weight"
             value={`${Math.round(weighed.reduce((s, a) => s + Number(a.weight), 0) / weighed.length)} kg`}
@@ -173,6 +210,11 @@ export default function Reports() {
         {harvests.length > 0 && (
           <StatCard icon="🍯" label="Honey harvested" value={`${honeyKg.toFixed(1)} kg`}
             sub={`${honeyHarvests.length} harvest${honeyHarvests.length !== 1 ? 's' : ''}`} color="amber" />
+        )}
+        {cropHarvests.length > 0 && cropIncome > 0 && (
+          <StatCard icon="🧺" label="Crop value"
+            value={`R${cropIncome.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`}
+            sub={`${cropHarvests.length} harvest${cropHarvests.length !== 1 ? 's' : ''}`} color="green" />
         )}
       </div>
 
@@ -238,8 +280,13 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Production summary */}
+        {/* Production summary. Both halves are livestock-derived, so a farm
+            that only grows crops would otherwise get an empty table and an
+            empty bar chart. */}
+        {(PRODUCTION.length > 0 || speciesCounts.length > 0) && (
         <div style={card}>
+          {PRODUCTION.length > 0 && (
+          <>
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Production Summary</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -261,9 +308,13 @@ export default function Reports() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
 
           {/* Herd composition mini-chart */}
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mt-5 mb-3">Herd by Species</h3>
+          {speciesCounts.length > 0 && (
+          <>
+          <h3 className={`text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 ${PRODUCTION.length > 0 ? 'mt-5' : ''}`}>Herd by Species</h3>
           <div className="flex flex-col gap-2.5">
             {speciesCounts.slice(0,6).map((s, i) => {
               const pct = Math.round((s.value / livestock.length) * 100);
@@ -280,8 +331,96 @@ export default function Reports() {
               );
             })}
           </div>
+          </>
+          )}
         </div>
+        )}
       </div>
+
+      {/* ── Crop yield — only once something has actually been harvested ─ */}
+      {cropHarvests.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Total off each crop, kept per unit */}
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Harvested by Crop</h3>
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={yieldByCrop}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                {/* No entry animation. Recharts paints a bar by animating it
+                    up from nothing, and when the chart mounts in a container
+                    that has no width yet the animation never runs — leaving
+                    empty shapes and a chart with axes and no bars, which is
+                    worse than no chart because it reads as "no harvest". This
+                    page also prints. */}
+                <Bar dataKey="qty" fill="#22c55e" radius={[4,4,0,0]} name="Harvested"
+                  isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+            {yieldByCrop.some(r => r.unit !== yieldByCrop[0].unit) && (
+              <p className="text-xs text-slate-400 mt-2">
+                Units differ between crops, so each bar is its own measure and totals are not combined.
+              </p>
+            )}
+          </div>
+
+          {/* Yield per hectare, where the area is known */}
+          <div style={card}>
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Yield per Block</h3>
+            {yieldByPlanting.length === 0 ? (
+              <p className="text-sm text-slate-400">No harvests tied to a planting yet.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {yieldByPlanting.slice(0, 6).map(({ planting, stats }) => (
+                  <div key={planting.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-700 truncate">
+                        {planting.crop}
+                        <span className="text-xs text-slate-400 font-mono ml-2">{planting.code}</span>
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {stats.units.map(u => `${Math.round(stats.byUnit[u] * 100) / 100} ${u}`).join(' · ')}
+                        {planting.areaHa ? ` from ${planting.areaHa} ha` : ''}
+                      </div>
+                    </div>
+                    <div className="text-sm font-bold whitespace-nowrap" style={{ color: '#15803d' }}>
+                      {stats.perHa !== null
+                        ? `${stats.perHa.toFixed(2)} ${stats.perHaUnit}/ha`
+                        : <span className="text-slate-300 font-medium">—</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Harvests taken inside a withholding period belong in the report a
+          buyer or auditor is handed, not only in the page that records them. */}
+      {flaggedHarvests.length > 0 && (
+        <div style={{ ...card, background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#b45309' }}>
+            Harvested inside a withholding period
+          </h3>
+          <div className="flex flex-col gap-2">
+            {flaggedHarvests.map(h => (
+              <div key={h.id} className="text-sm" style={{ color: '#92400e' }}>
+                <span className="font-mono font-bold">{h.lotCode || h.plantingCode}</span>
+                {' — '}{h.crop || h.plantingCode}, {h.quantity} {h.unit || 'kg'} on{' '}
+                {startOfDay(h.date)?.toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {h.destination ? ` to ${h.destination}` : ''}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs mt-3" style={{ color: '#92400e' }}>
+            Recorded deliberately, with the warning shown at the time. Check the interval was
+            not mistyped before this report leaves the farm.
+          </p>
+        </div>
+      )}
 
       {/* ── Apiary output — only shown once there are harvests ───────── */}
       {harvests.length > 0 && (

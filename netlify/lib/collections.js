@@ -157,6 +157,17 @@ export const COLLECTIONS = {
     },
     required: ['date', 'plantingCode', 'type'],
   },
+  cropHarvests: {
+    model: 'cropHarvest',
+    orderBy: { date: 'desc' },
+    fields: {
+      date: date, plantingCode: str, crop: str, variety: str, location: str,
+      lotCode: str, quantity: num, unit: str, grade: str, destination: str,
+      pricePerUnit: num, areaHa: num, operator: str, notes: str,
+      withholdingOverride: bool,
+    },
+    required: ['date', 'plantingCode', 'quantity'],
+  },
 };
 
 /* One row per user rather than a list. */

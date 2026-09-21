@@ -67,7 +67,7 @@ const DAY = 86400000;
  * farmer, agent or auditor whose browser is in the Americas. A date written on
  * a form means that calendar day wherever it is read.
  */
-const startOfDay = (value) => {
+export const startOfDay = (value) => {
   if (typeof value === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
     if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
@@ -159,3 +159,32 @@ export function withholdingStatus(planting, operations = [], now = Date.now()) {
 /** PL-2026-001 → the operations recorded against it, newest first. */
 export const operationsFor = (code, operations = []) =>
   operations.filter(op => op.plantingCode === code);
+
+/**
+ * Whether a harvest on a given date falls inside a withholding period.
+ *
+ * Only sprays applied on or before the harvest count. A spray that goes on
+ * afterwards says nothing about produce already off the field, and letting it
+ * count would raise a breach against a harvest that was clean when it
+ * happened — then quietly clear itself once enough time passed.
+ *
+ * Returns null when the harvest is in the clear.
+ */
+export function harvestBreach(plantingCode, harvestDate, operations = []) {
+  const harvested = startOfDay(harvestDate);
+  if (!harvested) return null;
+
+  const before = operations.filter(op => {
+    const applied = startOfDay(op.date);
+    return applied && applied <= harvested;
+  });
+
+  const clear = clearDateFor(plantingCode, before);
+  if (!clear || harvested >= clear.until) return null;
+
+  return {
+    until: clear.until,
+    op: clear.op,
+    shortBy: Math.ceil((clear.until - harvested) / DAY),
+  };
+}

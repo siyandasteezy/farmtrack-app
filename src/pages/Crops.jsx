@@ -6,16 +6,27 @@ import { Modal } from '../components/Modal';
 import { FormField, Input, Select, Textarea, Btn } from '../components/FormField';
 import {
   CROP_CATEGORIES, CROP_META, PLANTING_STATUSES, PLANTING_STATUS_TONE,
-  cropsByCategory, generatePlantingCode,
+  HARVEST_GRADES, HARVEST_UNITS, HARVEST_DESTINATIONS,
+  cropsByCategory, generatePlantingCode, generateLotCode, unitForCrop,
 } from '../data/crops';
 import {
   OPERATION_TYPES, OPERATION_META, OPERATION_TONE, COMMON_ACTIVES, QUANTITY_UNITS,
-  isSpray, withholdingUntil, reEntryUntil, withholdingStatus,
+  isSpray, withholdingUntil, reEntryUntil, withholdingStatus, harvestBreach, startOfDay,
 } from '../data/fieldOps';
 
-const fmtDate = (d) => d
-  ? new Date(d).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
-  : '—';
+const rand = (n) => `R${n.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`;
+
+/* Goes through startOfDay rather than new Date() so a stored 'YYYY-MM-DD'
+   renders as that calendar day everywhere. Handed straight to new Date() it is
+   read as UTC midnight and displayed a day earlier west of Greenwich, which
+   would print a spray date that disagrees with the withholding date computed
+   from it. */
+const fmtDate = (d) => {
+  const day = d ? startOfDay(d) : null;
+  return day
+    ? day.toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -440,13 +451,228 @@ function FieldOpForm({ record, plantings, onSave, onClose }) {
   );
 }
 
+/* ── Harvest form ────────────────────────────────────────────────────── */
+
+function HarvestForm({ record, plantings, harvests, fieldOps, onSave, onMarkHarvested, onClose }) {
+  const isNew = !record;
+  const firstPlanting = plantings.find(p => p.status === 'Growing') || plantings[0];
+
+  const [form, setForm] = useState(() => ({
+    date: record?.date || today(),
+    plantingCode: record?.plantingCode || firstPlanting?.code || '',
+    lotCode: record?.lotCode || generateLotCode(harvests),
+    quantity: record?.quantity ?? '',
+    unit: record?.unit || unitForCrop(firstPlanting?.crop),
+    grade: record?.grade || 'Ungraded',
+    destination: record?.destination || 'Packhouse',
+    pricePerUnit: record?.pricePerUnit ?? '',
+    areaHa: record?.areaHa ?? '',
+    operator: record?.operator || '',
+    notes: record?.notes || '',
+    withholdingOverride: record?.withholdingOverride ?? false,
+  }));
+  const [markHarvested, setMarkHarvested] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k) => (e) => { setError(''); setForm(p => ({ ...p, [k]: e.target.value })); };
+
+  const planting = plantings.find(p => p.code === form.plantingCode);
+
+  /* Switching planting re-guesses the unit, since a crop's usual measure is
+     part of the crop, not the farm. */
+  const onPlanting = (e) => {
+    const code = e.target.value;
+    const next = plantings.find(p => p.code === code);
+    setError('');
+    setForm(p => ({ ...p, plantingCode: code, unit: unitForCrop(next?.crop) }));
+  };
+
+  /* The Phase 2 warning applied to a harvest that is actually happening. */
+  const breach = useMemo(
+    () => harvestBreach(form.plantingCode, form.date, fieldOps),
+    [form.plantingCode, form.date, fieldOps]);
+
+  const qty = parseFloat(form.quantity);
+  const price = parseFloat(form.pricePerUnit);
+  const income = Number.isFinite(qty) && Number.isFinite(price) ? qty * price : null;
+
+  const perHa = (() => {
+    const area = parseFloat(form.areaHa) || planting?.areaHa;
+    return Number.isFinite(qty) && area ? qty / area : null;
+  })();
+
+  const handleSave = () => {
+    if (!form.plantingCode) { setError('Choose the planting this came off'); return; }
+    if (!form.date) { setError('A date is required'); return; }
+    if (!Number.isFinite(qty) || qty <= 0) { setError('Record how much came off'); return; }
+    if (breach && !form.withholdingOverride) {
+      setError('This harvest falls inside a withholding period — confirm it above to continue');
+      return;
+    }
+
+    const numOrNull = (v) => (v === '' || v === null ? null : parseFloat(v));
+
+    onSave({
+      ...record,
+      ...form,
+      quantity: qty,
+      pricePerUnit: numOrNull(form.pricePerUnit),
+      areaHa: numOrNull(form.areaHa),
+      crop: planting?.crop || record?.crop || null,
+      variety: planting?.variety || record?.variety || null,
+      location: planting?.location || record?.location || null,
+      // Only meaningful when there is actually a breach to acknowledge.
+      withholdingOverride: !!breach && !!form.withholdingOverride,
+    });
+
+    if (markHarvested && planting) onMarkHarvested(planting);
+    onClose();
+  };
+
+  return (
+    <Modal open title={isNew ? 'Record Harvest' : `Edit — ${record.lotCode || record.crop}`} onClose={onClose}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save harvest</Btn></>}>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Date *">
+            <Input type="date" value={form.date} onChange={set('date')} />
+          </FormField>
+          <FormField label="Lot code" hint="Follows the produce off the farm">
+            <Input value={form.lotCode} onChange={set('lotCode')} />
+          </FormField>
+        </div>
+
+        <FormField label="Planting *"
+          hint={planting
+            ? `${planting.crop}${planting.location ? ` · ${planting.location}` : ''}${planting.areaHa ? ` · ${planting.areaHa} ha` : ''}`
+            : 'Add a planting first'}>
+          <Select value={form.plantingCode} onChange={onPlanting}>
+            {plantings.length === 0 && <option value="">No plantings yet</option>}
+            {plantings.map(p => (
+              <option key={p.id} value={p.code}>{p.code} — {p.crop}</option>
+            ))}
+          </Select>
+        </FormField>
+
+        {/* A harvest inside a withholding period is the failure Phase 2 exists
+            to prevent. It is not blocked outright — the interval may have been
+            typed wrong, or this may be going somewhere residues don't matter —
+            but it has to be acknowledged, and the acknowledgement is stored. */}
+        {breach && (
+          <div className="rounded-xl p-4 flex flex-col gap-3"
+            style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+            <div className="flex items-start gap-2">
+              <TriangleAlert size={16} style={{ color: '#b91c1c' }} className="flex-shrink-0 mt-0.5" />
+              <div className="text-sm" style={{ color: '#991b1b' }}>
+                <strong>This harvest is inside a withholding period.</strong>{' '}
+                {breach.op?.product || breach.op?.activeIngredient || 'A spray'} on{' '}
+                {fmtDate(breach.op?.date)} holds this block until {fmtDate(breach.until)} —{' '}
+                {breach.shortBy} day{breach.shortBy === 1 ? '' : 's'} after the date above.
+                Produce taken now may carry residues above the MRL.
+              </div>
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" className="mt-0.5"
+                checked={!!form.withholdingOverride}
+                onChange={(e) => { setError(''); setForm(p => ({ ...p, withholdingOverride: e.target.checked })); }} />
+              <span className="text-sm font-semibold" style={{ color: '#991b1b' }}>
+                I understand, and I'm recording this harvest anyway. This will be
+                flagged on the record.
+              </span>
+            </label>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-3">
+          <FormField label="Quantity *">
+            <Input type="number" step="0.01" min="0" value={form.quantity}
+              onChange={set('quantity')} placeholder="e.g. 1250" />
+          </FormField>
+          <FormField label="Unit">
+            <Select value={form.unit} onChange={set('unit')}>
+              {HARVEST_UNITS.map(u => <option key={u}>{u}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Area taken (ha)" hint="Blank = whole block">
+            <Input type="number" step="0.01" min="0" value={form.areaHa}
+              onChange={set('areaHa')} placeholder={planting?.areaHa ? String(planting.areaHa) : ''} />
+          </FormField>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Grade">
+            <Select value={form.grade} onChange={set('grade')}>
+              {HARVEST_GRADES.map(g => <option key={g}>{g}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Destination">
+            <Select value={form.destination} onChange={set('destination')}>
+              {HARVEST_DESTINATIONS.map(d => <option key={d}>{d}</option>)}
+            </Select>
+          </FormField>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={`Price per ${form.unit} (R)`} hint="Optional">
+            <Input type="number" step="0.01" min="0" value={form.pricePerUnit}
+              onChange={set('pricePerUnit')} placeholder="e.g. 12.50" />
+          </FormField>
+          <FormField label="Harvested by">
+            <Input value={form.operator} onChange={set('operator')} placeholder="e.g. Team 2" />
+          </FormField>
+        </div>
+
+        {(income !== null || perHa !== null) && (
+          <div className="flex flex-wrap gap-4 px-3.5 py-3 rounded-xl text-sm"
+            style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            {perHa !== null && (
+              <div>
+                <span className="text-slate-500">Yield</span>{' '}
+                <strong style={{ color: '#15803d' }}>
+                  {perHa.toFixed(2)} {form.unit}/ha
+                </strong>
+              </div>
+            )}
+            {income !== null && (
+              <div>
+                <span className="text-slate-500">Value</span>{' '}
+                <strong style={{ color: '#15803d' }}>{rand(income)}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isNew && planting && planting.status === 'Growing' && !planting.perennial && (
+          <label className="flex items-center gap-2.5 cursor-pointer text-sm text-slate-600">
+            <input type="checkbox" checked={markHarvested}
+              onChange={(e) => setMarkHarvested(e.target.checked)} />
+            Mark {planting.code} as harvested — it's an annual and this was the last pick
+          </label>
+        )}
+
+        <FormField label="Notes">
+          <Textarea rows={2} value={form.notes} onChange={set('notes')}
+            placeholder="Quality, weather, anything the buyer asked about…" />
+        </FormField>
+
+        {error && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: '#fff5f5', border: '1px solid #fca5a5', color: '#dc2626' }}>
+            ⚠ {error}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────── */
 
 export default function Crops() {
   const {
-    plantings, zones, fieldOps,
+    plantings, zones, fieldOps, cropHarvests,
     addPlanting, updatePlanting, removePlanting,
     addFieldOp, updateFieldOp, removeFieldOp,
+    addCropHarvest, updateCropHarvest, removeCropHarvest,
   } = useData();
 
   const [tab, setTab] = useState('plantings');
@@ -500,10 +726,32 @@ export default function Crops() {
   const countOf = (c) => c === 'All' ? plantings.length : plantings.filter(p => p.category === c).length;
   const plantingOf = (code) => plantings.find(p => p.code === code);
 
+  const shownHarvests = useMemo(() => cropHarvests.filter(h => {
+    if (!search) return true;
+    const hay = `${h.plantingCode} ${h.crop || ''} ${h.lotCode || ''} ${h.grade || ''} ` +
+      `${h.destination || ''} ${h.operator || ''}`;
+    return hay.toLowerCase().includes(search.toLowerCase());
+  }), [cropHarvests, search]);
+
+  /* Season income only counts what was actually priced, so a farm that
+     records tonnage without prices sees no number rather than a wrong one. */
+  const season = useMemo(() => {
+    const income = cropHarvests.reduce(
+      (s, h) => s + ((h.pricePerUnit || 0) * (h.quantity || 0)), 0);
+    const flagged = cropHarvests.filter(h => h.withholdingOverride).length;
+    return { income, flagged };
+  }, [cropHarvests]);
+
   const TABS = [
     { key: 'plantings', label: 'Plantings', count: plantings.length },
     { key: 'operations', label: 'Field operations', count: fieldOps.length },
+    { key: 'harvests', label: 'Harvests', count: cropHarvests.length },
   ];
+
+  const ADD_LABEL = {
+    plantings: 'Add planting', operations: 'Record operation', harvests: 'Record harvest',
+  };
+  const ADD_MODAL = { plantings: 'add', operations: 'add-op', harvests: 'add-harvest' };
 
   return (
     <div className="flex flex-col gap-5 fade-in">
@@ -514,9 +762,9 @@ export default function Crops() {
             Plantings across your fields, orchards and tunnels
           </p>
         </div>
-        <Btn onClick={() => setModal({ type: tab === 'plantings' ? 'add' : 'add-op' })}
-          disabled={tab === 'operations' && plantings.length === 0}>
-          <Plus size={16} /> {tab === 'plantings' ? 'Add planting' : 'Record operation'}
+        <Btn onClick={() => setModal({ type: ADD_MODAL[tab] })}
+          disabled={tab !== 'plantings' && plantings.length === 0}>
+          <Plus size={16} /> {ADD_LABEL[tab]}
         </Btn>
       </div>
 
@@ -525,8 +773,17 @@ export default function Crops() {
           sub={`${growing.length} growing`} color="green" />
         <StatCard icon="📐" label="Area planted" value={`${totalHa.toFixed(1)} ha`}
           sub="Planned and growing" color="blue" />
-        <StatCard icon="🗓️" label="Harvest due" value={dueSoon}
-          sub="Within 30 days" color={dueSoon > 0 ? 'amber' : 'green'} />
+        {tab === 'harvests' && cropHarvests.length > 0 ? (
+          <StatCard icon="💰" label="Season value"
+            value={season.income > 0 ? rand(season.income) : '—'}
+            sub={season.income > 0
+              ? `${cropHarvests.length} harvest${cropHarvests.length === 1 ? '' : 's'}`
+              : 'Add prices to see value'}
+            color="green" />
+        ) : (
+          <StatCard icon="🗓️" label="Harvest due" value={dueSoon}
+            sub="Within 30 days" color={dueSoon > 0 ? 'amber' : 'green'} />
+        )}
         <StatCard icon="🚫" label="Under withholding" value={blocked.length}
           sub={clashes.length > 0 ? `${clashes.length} clash with harvest` : 'Cannot be harvested yet'}
           color={clashes.length > 0 ? 'red' : blocked.length > 0 ? 'amber' : 'green'} />
@@ -557,6 +814,25 @@ export default function Crops() {
                 );
               })}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* A harvest taken inside a withholding period stays visible rather than
+          being buried in the row that records it. */}
+      {season.flagged > 0 && (
+        <div className="rounded-2xl p-4 flex gap-3"
+          style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <TriangleAlert size={18} style={{ color: '#b45309' }} className="flex-shrink-0 mt-0.5" />
+          <div className="text-sm" style={{ color: '#92400e' }}>
+            <strong>
+              {season.flagged} harvest{season.flagged === 1 ? '' : 's'} recorded inside a
+              withholding period
+            </strong>
+            <div className="mt-0.5">
+              Flagged on the Harvests tab. Worth knowing before a buyer or an auditor asks —
+              and worth checking the interval was not simply typed wrong.
+            </div>
           </div>
         </div>
       )}
@@ -593,9 +869,11 @@ export default function Crops() {
         <div className="relative mb-5 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input className="pl-9"
-            placeholder={tab === 'plantings'
-              ? 'Search code, crop, variety or field…'
-              : 'Search product, active, target or operator…'}
+            placeholder={{
+              plantings:  'Search code, crop, variety or field…',
+              operations: 'Search product, active, target or operator…',
+              harvests:   'Search lot, crop, grade or destination…',
+            }[tab]}
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
@@ -673,7 +951,7 @@ export default function Crops() {
               </table>
             </div>
           )
-        ) : (
+        ) : tab === 'operations' ? (
           fieldOps.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
               <div className="text-4xl mb-2">🚜</div>
@@ -774,6 +1052,94 @@ export default function Crops() {
               </table>
             </div>
           )
+        ) : (
+          cropHarvests.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-2">🧺</div>
+              <p className="text-sm font-medium">No harvests recorded</p>
+              <p className="text-xs mt-1 max-w-md mx-auto">
+                What actually came off each block, with a lot code that follows it to the buyer.
+                Recording a harvest here checks it against any withholding period still running.
+              </p>
+              {plantings.length === 0 && (
+                <p className="text-xs mt-2 text-slate-400">Add a planting first.</p>
+              )}
+            </div>
+          ) : shownHarvests.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <p className="text-sm font-medium">Nothing matches that search</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    {['Date','Lot','Planting','Quantity','Yield','Grade','Destination','Value',''].map(h => (
+                      <th key={h} className="text-left px-3 py-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownHarvests.map(h => {
+                    const p = plantingOf(h.plantingCode);
+                    const area = h.areaHa || p?.areaHa;
+                    const perHa = area ? (h.quantity || 0) / area : null;
+                    const value = h.pricePerUnit ? (h.quantity || 0) * h.pricePerUnit : null;
+                    return (
+                      <tr key={h.id} className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
+                        <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">
+                          {fmtDate(h.date)}
+                          {h.withholdingOverride && (
+                            <div className="text-[11px] font-bold mt-0.5" style={{ color: '#b45309' }}>
+                              ⚠ inside withholding
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          {h.lotCode
+                            ? <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-xs font-mono font-bold">{h.lotCode}</span>
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <span className="text-xs font-mono font-bold text-slate-500">{h.plantingCode}</span>
+                          {h.crop && (
+                            <div className="font-semibold text-slate-800 mt-0.5">
+                              {CROP_META[h.crop]?.emoji || '🌱'} {h.crop}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5 text-slate-800 font-semibold whitespace-nowrap">
+                          {h.quantity} {h.unit || 'kg'}
+                        </td>
+                        <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">
+                          {perHa !== null
+                            ? `${perHa.toFixed(2)} ${h.unit || 'kg'}/ha`
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-slate-600">{h.grade || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-3 py-3.5 text-slate-600">{h.destination || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-3 py-3.5 text-slate-700 font-semibold whitespace-nowrap">
+                          {value !== null ? rand(value) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setModal({ type: 'edit-harvest', record: h })}
+                              className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => removeCropHarvest(h.id)}
+                              className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
 
@@ -790,6 +1156,18 @@ export default function Crops() {
       {modal?.type === 'edit-op' && (
         <FieldOpForm record={modal.record} plantings={plantings}
           onSave={updateFieldOp} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'add-harvest' && (
+        <HarvestForm plantings={plantings} harvests={cropHarvests} fieldOps={fieldOps}
+          onSave={addCropHarvest}
+          onMarkHarvested={(p) => updatePlanting({ ...p, status: 'Harvested' })}
+          onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'edit-harvest' && (
+        <HarvestForm record={modal.record} plantings={plantings} harvests={cropHarvests}
+          fieldOps={fieldOps} onSave={updateCropHarvest}
+          onMarkHarvested={(p) => updatePlanting({ ...p, status: 'Harvested' })}
+          onClose={() => setModal(null)} />
       )}
     </div>
   );

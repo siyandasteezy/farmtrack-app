@@ -1,14 +1,21 @@
 /**
- * Compliance reference.
+ * Compliance reference, written against named South African legislation.
  *
- * `jurisdiction` says how far a category can be trusted:
- *   'ZA'      — written against named South African legislation, cited in `ref`.
- *   'general' — inherited generic international guidance, NOT verified against
- *               South African law. Several items in these categories describe
- *               UK/EU rules (closed-season slurry spreading, a 20 m³/day
- *               abstraction threshold) that do not apply here. They are kept
- *               because the underlying topics are real, and labelled so nobody
- *               mistakes them for South African requirements.
+ * Every item cites the Act it comes from in `ref`, because on a page like this
+ * the citation is the part that can be checked. Where a requirement depends on
+ * the species, the province, the catchment or the buyer, the item says so
+ * rather than inventing a figure — a confident wrong number here would be
+ * acted on.
+ *
+ * Several items exist to correct a belief rather than state a rule: South
+ * African law sets no stocking densities for most livestock and no general
+ * quarantine period, and has no organic standard in force. Saying so is more
+ * useful than silence, because the numbers in circulation are borrowed from
+ * jurisdictions whose rules do not apply here.
+ *
+ * `jurisdiction` is 'ZA' for all of these. It is kept because the page badges
+ * it, and because anything added later that has not been checked against South
+ * African law should be marked 'general' and shown as unverified.
  *
  * `only` limits a category to farms running that enterprise, the same way the
  * sidebar does. Categories without it are shown to everyone.
@@ -16,21 +23,26 @@
 
 export const REGULATIONS = [
   {
-    category: 'Animal Welfare', jurisdiction: 'general', only: 'livestock', icon: '🐾',
+    category: 'Animal Welfare', jurisdiction: 'ZA', only: 'livestock', icon: '🐾',
     items: [
-      { title:'Five Freedoms Standard', body:'All livestock must have freedom from hunger, discomfort, pain, fear, and freedom to express natural behaviour. Applies to all farmed animals under the Animal Welfare Act.', tag:'Mandatory', severity:'red' },
-      { title:'Minimum Space Requirements', body:'Cattle ≥2.2 m², pigs ≥0.65 m² (grow-out), poultry ≤19 kg/m² (broiler); outdoor access required for free-range classification.', tag:'Mandatory', severity:'red' },
-      { title:'Humane Slaughter', body:'Animals must be stunned before slaughter. All operators require an Animal Welfare Certificate. Halal/Kosher exemptions may apply with religious endorsement.', tag:'Mandatory', severity:'red' },
-      { title:'Castration & Dehorning', body:'Must be performed before specified ages; anaesthesia required when performed on older animals. Tail docking banned in cattle, restricted in sheep.', tag:'Mandatory', severity:'amber' },
+      { title:'Duty of Care', body:'It is a criminal offence to ill-treat, neglect or overwork an animal, or to fail to provide it with sufficient food, water, shelter or veterinary attention. This is the law animal welfare is actually enforced under in South Africa — there is no separate welfare act — and the NSPCA holds powers of inspection and private prosecution.', tag:'Mandatory', severity:'red', ref:'Animals Protection Act 71 of 1962' },
+      { title:'Stocking Density and Housing', body:'South African law prescribes no minimum space per animal for most species. That is not permission: overcrowding that causes suffering is prosecutable under the duty of care. Figures come from industry codes (RPO, SAPA, SAPPO) and from buyer schemes, and those are the numbers an audit will measure you against.', tag:'Mandatory', severity:'amber', ref:'Animals Protection Act 71 of 1962; industry codes of practice' },
+      { title:'Slaughter at a Registered Abattoir', body:'Animals slaughtered for meat intended for human consumption must be slaughtered at a registered abattoir meeting the essential national standards, which include stunning. Religious slaughter is provided for within those standards. Slaughter for the owner\'s own household is treated differently — confirm the position with your provincial authority rather than assuming.', tag:'Mandatory', severity:'red', ref:'Meat Safety Act 40 of 2000' },
+      { title:'Procedures Reserved for Veterinarians', body:'Diagnosis, surgery and a range of other procedures may only be performed by a registered veterinarian or, within their scope, an authorised para-veterinary professional. Performing them without registration is an offence.', tag:'Mandatory', severity:'red', ref:'Veterinary and Para-Veterinary Professions Act 19 of 1982' },
+      { title:'Castration, Dehorning and Docking', body:'No ages or methods are fixed in statute. They are governed by the duty not to cause unnecessary suffering, and by industry codes recommending the youngest practical age with pain control. A routine procedure that causes avoidable suffering is still an offence, however common it is.', tag:'Mandatory', severity:'amber', ref:'Animals Protection Act 71 of 1962; industry codes of practice' },
+      { title:'Transport', body:'Animals must be transported without unnecessary suffering — fitness to travel, loading density, ventilation and journey time. SANS 1488 is the recognised standard and is increasingly required by abattoirs and buyers even though it is not itself law.', tag:'Mandatory', severity:'amber', ref:'Animals Protection Act 71 of 1962; SANS 1488' },
     ]
   },
   {
-    category: 'Health & Biosecurity', jurisdiction: 'general', only: 'livestock', icon: '🦠',
+    category: 'Health & Biosecurity', jurisdiction: 'ZA', only: 'livestock', icon: '🦠',
     items: [
-      { title:'Notifiable Disease Reporting', body:'FMD, Anthrax, Brucellosis, BSE, Avian Influenza, and Newcastle Disease must be reported to the relevant authority within 24 hours of suspicion.', tag:'Mandatory', severity:'red' },
-      { title:'Quarantine Protocols', body:'Newly acquired animals must be isolated for 14–28 days. Movement permits required between farms. Keep movement records for minimum 3 years.', tag:'Mandatory', severity:'red' },
-      { title:'Vaccination Schedules', body:'FMD vaccination required in endemic areas (bi-annual). Brucellosis vaccination for cattle calves. Poultry — Newcastle Disease, Marek\'s. Maintain vaccination records.', tag:'Mandatory', severity:'amber' },
-      { title:'Veterinary Prescriptions', body:'Prescription-only medicines require a Vet-Client-Patient relationship. Maintain medicine records for 5 years. Observe withholding periods before slaughter.', tag:'Mandatory', severity:'amber' },
+      { title:'Controlled and Notifiable Diseases', body:'The Act and its regulations schedule controlled animal diseases. An owner or manager who knows or suspects that an animal has one must report it to the state veterinarian without delay. Foot-and-mouth disease, anthrax, rabies, brucellosis, African swine fever and highly pathogenic avian influenza are among them. Reporting is a legal duty, not a courtesy, and concealment is an offence.', tag:'Mandatory', severity:'red', ref:'Animal Diseases Act 35 of 1984 and its regulations' },
+      { title:'Duty to Prevent Infection and Spread', body:'Owners must take all reasonable steps to keep their animals free of controlled diseases and to stop them spreading — isolating sick animals, controlling visitors and vehicles, and disposing of carcasses properly. The duty sits with the owner, not the state vet.', tag:'Mandatory', severity:'red', ref:'Animal Diseases Act 35 of 1984' },
+      { title:'Movement Control and Permits', body:'Moving animals out of a controlled area — notably the foot-and-mouth disease control zones along the Kruger boundary — requires a state veterinary permit, and may require quarantine and testing first. Moving animals without one is an offence, and it is how outbreaks travel.', tag:'Mandatory', severity:'red', ref:'Animal Diseases Act 35 of 1984' },
+      { title:'Bovine Brucellosis', body:'Brucellosis is a controlled disease. Testing, vaccination of heifer calves and the handling of reactors follow the national control measures; positive animals must be reported and dealt with as the state veterinarian directs. It is also a serious human infection, which is why the reporting duty is strict.', tag:'Mandatory', severity:'red', ref:'Animal Diseases Act 35 of 1984 — bovine brucellosis control measures' },
+      { title:'Stock Remedies and Veterinary Medicines', body:'Stock remedies are registered under Act 36 of 1947 and carry a G number on the label. Veterinary medicines are registered under Act 101 of 1965, and scheduled medicines require a veterinarian\'s prescription. Use only according to the label — species, dose and route.', tag:'Mandatory', severity:'red', ref:'Act 36 of 1947; Medicines and Related Substances Act 101 of 1965' },
+      { title:'Withdrawal Periods', body:'Every label states the withdrawal period for meat, milk or eggs. Selling product from an animal inside that period puts residues into the food chain and is the livestock equivalent of harvesting a sprayed crop too early. Record the treatment date and the withdrawal period so the release date is not left to memory.', tag:'Mandatory', severity:'red', ref:'Act 36 of 1947 / Act 101 of 1965 — label conditions' },
+      { title:'New Arrivals and Quarantine', body:'General law prescribes no fixed isolation period for incoming stock — the 14 to 28 days often quoted is industry practice, not a South African legal requirement. Isolating and testing new arrivals before mixing remains the single most effective thing you can do, and quarantine may be imposed as a permit condition.', tag:'Recommended', severity:'blue', ref:'Industry practice; permit conditions under Act 35 of 1984' },
     ]
   },
   {
@@ -38,12 +50,12 @@ export const REGULATIONS = [
        15 November 2013, made under the Agricultural Pests Act 36 of 1983. */
     category: 'Beekeeping & Apiaries', only: 'livestock', jurisdiction: 'ZA', icon: '🐝',
     items: [
-      { title:'Beekeeper Registration (every 24 months)', body:'Anyone who keeps, owns or is in charge of a honey-bee colony — commercial, hobbyist or bee-removal operator — must register with DALRRD and renew every 24 months. Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983.', tag:'Mandatory', severity:'red' },
-      { title:'Beehive Marking', body:'Every beehive must be marked clearly and legibly with the registration number allocated to the beekeeper. Unmarked hives are non-compliant.', tag:'Mandatory', severity:'red' },
-      { title:'American Foulbrood — Notifiable', body:'American foulbrood (AFB) is a declared notifiable disease. Beekeepers are obliged to manage or eradicate it, report findings to DALRRD, and may be required to destroy infected colonies. Infected colonies and their equipment may not be moved.', tag:'Mandatory', severity:'red' },
-      { title:'Cape Bee (capensis) Control', body:'Removal and movement of capensis-infected colonies is prohibited, and infected colonies are subject to destruction. Moving Cape bees (A. m. capensis) into A. m. scutellata areas triggers laying-worker social parasitism that can collapse host colonies.', tag:'Mandatory', severity:'red' },
-      { title:'Colony Inspection & Record-Keeping', body:'Beekeepers must inspect every colony in their beehives and keep records as prescribed under the Control Measures — inspection dates, disease findings and actions taken.', tag:'Mandatory', severity:'amber' },
-      { title:'Import of Bees, Honey & Used Equipment', body:'Honey, beeswax and used apiary equipment are controlled goods. A DALRRD import permit is required under section 3(1) of the Agricultural Pests Act 36 of 1983 before importing any of them.', tag:'Mandatory', severity:'amber' },
+      { title:'Beekeeper Registration (every 24 months)', body:'Anyone who keeps, owns or is in charge of a honey-bee colony — commercial, hobbyist or bee-removal operator — must register with DALRRD and renew every 24 months.', tag:'Mandatory', severity:'red', ref:'Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983' },
+      { title:'Beehive Marking', body:'Every beehive must be marked clearly and legibly with the registration number allocated to the beekeeper. Unmarked hives are non-compliant.', tag:'Mandatory', severity:'red', ref:'Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983' },
+      { title:'American Foulbrood — Notifiable', body:'American foulbrood (AFB) is a declared notifiable disease. Beekeepers are obliged to manage or eradicate it, report findings to DALRRD, and may be required to destroy infected colonies. Infected colonies and their equipment may not be moved.', tag:'Mandatory', severity:'red', ref:'Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983' },
+      { title:'Cape Bee (capensis) Control', body:'Removal and movement of capensis-infected colonies is prohibited, and infected colonies are subject to destruction. Moving Cape bees (A. m. capensis) into A. m. scutellata areas triggers laying-worker social parasitism that can collapse host colonies.', tag:'Mandatory', severity:'red', ref:'Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983' },
+      { title:'Colony Inspection & Record-Keeping', body:'Beekeepers must inspect every colony in their beehives and keep records as prescribed under the Control Measures — inspection dates, disease findings and actions taken.', tag:'Mandatory', severity:'amber', ref:'Control Measures relating to Honey-bees (R.858 of 2013), Agricultural Pests Act 36 of 1983' },
+      { title:'Import of Bees, Honey & Used Equipment', body:'Honey, beeswax and used apiary equipment are controlled goods. A DALRRD import permit is required before importing any of them.', tag:'Mandatory', severity:'amber', ref:'Agricultural Pests Act 36 of 1983, section 3(1)' },
     ]
   },
   /* ── Crops ────────────────────────────────────────────────────────────
@@ -100,37 +112,46 @@ export const REGULATIONS = [
     ]
   },
   {
-    category: 'Environmental', jurisdiction: 'general', icon: '🌿',
+    category: 'Environmental', jurisdiction: 'ZA', icon: '🌿',
     items: [
-      { title:'Manure & Slurry Management', body:'Manure stores must be at least 10 m from watercourses. Closed season spreading restrictions apply November–January. Nutrient Management Plans required for larger farms.', tag:'Mandatory', severity:'amber' },
-      { title:'Water Abstraction Licences', body:'Abstracting more than 20 m³/day requires a licence. Borehole registration required. Water quality testing required twice annually.', tag:'Mandatory', severity:'amber' },
-      { title:'Greenhouse Gas Reporting', body:'Farms over 250 livestock units must participate in national GHG reporting schemes. Methane reduction plans encouraged with subsidy incentives.', tag:'Recommended', severity:'blue' },
-      { title:'Hedgerow & Buffer Zone', body:'Minimum 2 m buffer strip alongside watercourses. No chemical application within 6 m of waterways. Hedgerow removal requires notification.', tag:'Mandatory', severity:'amber' },
+      { title:'Veld and Grazing Management', body:'Landowners must protect the soil and the vegetation on it — avoiding overgrazing, keeping within carrying capacity and preventing erosion. Directives can be issued requiring corrective measures, and they are enforceable.', tag:'Mandatory', severity:'amber', ref:'Conservation of Agricultural Resources Act 43 of 1983' },
+      { title:'Soil Conservation Works', body:'Contours, waterways and banks already established on the farm must be maintained. Breaking virgin soil, cultivating steep slopes, and cultivating wetlands or land alongside a watercourse are restricted.', tag:'Mandatory', severity:'amber', ref:'Conservation of Agricultural Resources Act 43 of 1983' },
+      { title:'Declared Weeds and Invader Plants', body:'Landowners must control listed alien and invasive species. Category 1a and 1b plants must be removed and destroyed; others are restricted or may be kept only under conditions. The duty runs with the land and transfers on sale.', tag:'Mandatory', severity:'amber', ref:'NEM:BA 10 of 2004 — Alien and Invasive Species Regulations; CARA 43 of 1983' },
+      { title:'Water Use and Registration', body:'Reasonable stock watering from a resource on your own land is generally a permissible use, but abstraction for irrigation, or storage above the permitted thresholds, needs authorisation — a General Authorisation, an existing lawful use, or a licence. Water use must be registered. Which route applies depends on volume and catchment, so confirm your position rather than assuming.', tag:'Mandatory', severity:'red', ref:'National Water Act 36 of 1998 (Schedule 1; water use authorisation)' },
+      { title:'Preventing Water Pollution', body:'There is a general duty on anyone who owns or controls land to prevent pollution of a water resource, and to remedy it if it happens. On a livestock farm the usual sources are feedlot runoff, dairy parlour effluent, and badly sited manure or carcass pits. The duty falls on the landowner regardless of who caused it.', tag:'Mandatory', severity:'red', ref:'National Water Act 36 of 1998, section 19' },
+      { title:'Intensive Animal Facilities', body:'Establishing or expanding feedlots, piggeries, poultry houses or aquaculture above the listed thresholds is a listed activity requiring environmental authorisation before construction begins. Building first and applying afterwards is an offence and can result in demolition.', tag:'Mandatory', severity:'red', ref:'National Environmental Management Act 107 of 1998 — EIA Regulations' },
+      { title:'Carcass Disposal', body:'Carcasses must be disposed of so they cannot spread disease or contaminate water — the method may be directed by the state veterinarian where a controlled disease is involved.', tag:'Mandatory', severity:'amber', ref:'Animal Diseases Act 35 of 1984; National Water Act 36 of 1998' },
     ]
   },
   {
-    category: 'Traceability & Record-Keeping', jurisdiction: 'general', only: 'livestock', icon: '📋',
+    category: 'Traceability & Record-Keeping', jurisdiction: 'ZA', only: 'livestock', icon: '📋',
     items: [
-      { title:'Ear Tagging & Identification', body:'Cattle — two approved ear tags within 20 days of birth. Sheep/goats — tagged before leaving holding. Pigs — slap mark or ear tag before movement. Must be registered in national database.', tag:'Mandatory', severity:'red' },
-      { title:'Movement Records', body:'All animal movements on/off-farm must be recorded within 3 days. Online cattle tracing mandatory for cattle. Holding numbers required for all species.', tag:'Mandatory', severity:'red' },
-      { title:'Medicine & Treatment Log', body:'Date, product, dose, route, batch number, withdrawal period, and operator must be recorded for every treatment. Kept for minimum 5 years.', tag:'Mandatory', severity:'red' },
-      { title:'Feed Records', body:'Compound feed labels must be kept. Home-mix records required. Medicated feed prescriptions stored. Annual feed audit recommended for certified farms.', tag:'Mandatory', severity:'amber' },
+      { title:'Registered Identification Mark', body:'Owners of the prescribed kinds of animals — cattle, sheep, goats and pigs — must obtain a registered identification mark from the Registrar. The mark is the legal link between an animal and its owner, and it is what makes a stolen animal recoverable.', tag:'Mandatory', severity:'red', ref:'Animal Identification Act 6 of 2002' },
+      { title:'Marking Before Sale, Movement or Slaughter', body:'Animals must carry the owner\'s registered mark — tattooed or branded as prescribed for the species — before they are sold, moved off the property or slaughtered. An unmarked animal is hard to claim and easy to lose.', tag:'Mandatory', severity:'red', ref:'Animal Identification Act 6 of 2002' },
+      { title:'Proof of Lawful Possession', body:'Anyone moving or selling livestock should carry documentation showing lawful possession — a removal certificate or equivalent. Being found in possession of stock you cannot account for is an offence in itself, and weak paperwork turns an ordinary sale into a stock-theft investigation.', tag:'Mandatory', severity:'red', ref:'Stock Theft Act 57 of 1959' },
+      { title:'Treatment Records', body:'Record the date, animal, product and registration number, dose, route, operator and withdrawal period for every treatment. This is what demonstrates that withdrawal periods were observed, and it is the first thing asked for if an abattoir finds a residue.', tag:'Mandatory', severity:'amber', ref:'Act 36 of 1947 / Act 101 of 1965; abattoir and buyer requirement' },
+      { title:'Feed Records', body:'Keep labels and invoices for compound feed and records of home mixes, including any medicated feed. Farm feeds are themselves registered products.', tag:'Mandatory', severity:'amber', ref:'Act 36 of 1947' },
+      { title:'National Traceability', body:'A national livestock identification and traceability system has been under development for several years. It is not yet a general obligation, but keeping marks, movements and treatments in order now is what will make joining it straightforward rather than a scramble.', tag:'Recommended', severity:'blue', ref:'DALRRD — LITS SA, in development' },
     ]
   },
   {
-    category: 'Organic & Certification', jurisdiction: 'general', only: 'livestock', icon: '✅',
+    category: 'Organic & Certification', jurisdiction: 'ZA', only: 'livestock', icon: '✅',
     items: [
-      { title:'Organic Conversion Period', body:'Minimum 12 months for livestock products, 24 months for beef cattle. Animals must be sourced from certified organic farms where possible.', tag:'Certification', severity:'green' },
-      { title:'Antibiotic-Free Standards', body:'No preventive antibiotic use under organic certification. Treated animals lose organic status and must be sold conventionally during withholding period.', tag:'Certification', severity:'green' },
-      { title:'Free-Range Welfare Mark', body:'Minimum 4 m² outdoor access per bird. Year-round access required. Stocking density ≤13 birds/m² indoors. Annual inspections by certifying body.', tag:'Certification', severity:'green' },
+      { title:'No National Organic Standard', body:'South Africa has no promulgated organic regulation. Draft regulations have been in process for years and are not in force, so "organic" sold domestically is not a legally defined or independently policed claim. Anyone certifying here does so against a foreign or private standard.', tag:'Recommended', severity:'blue', ref:'Agricultural Product Standards Act 119 of 1990 — draft organic regulations not in force' },
+      { title:'Organic for Export', body:'Selling as organic into the EU, UK or US means certification by an accredited body against that market\'s standard. Conversion periods, permitted treatments and inspection frequency are set by that standard, not by South African law, and they differ between markets.', tag:'Certification', severity:'green', ref:'Importing country standards (EU, UK, USDA NOP)' },
+      { title:'Claims Must Not Mislead', body:'"Free-range", "grass-fed", "hormone-free" and "antibiotic-free" have no statutory definition in South Africa. That does not make them safe to use loosely — food labelling law prohibits false or misleading claims, so any claim must be defensible from your own records if challenged.', tag:'Mandatory', severity:'amber', ref:'Foodstuffs, Cosmetics and Disinfectants Act 54 of 1972 — labelling regulations (R.146 of 2010)' },
+      { title:'Industry Assurance Schemes', body:'SAPA, SAPPO and the red meat industry bodies run their own audited schemes and certification marks. They are not law, but they are often what a retailer actually requires, and they set the stocking densities and welfare criteria that statute leaves open.', tag:'Certification', severity:'green', ref:'Industry schemes — buyer requirement' },
     ]
   },
   {
-    category: 'Worker Safety', jurisdiction: 'general', icon: '🦺',
+    category: 'Worker Safety', jurisdiction: 'ZA', icon: '🦺',
     items: [
-      { title:'Zoonotic Disease Protection', body:'PPE required when handling sick animals or birthing. Leptospirosis, Campylobacter, Cryptosporidium protocols mandatory. Hepatitis E vaccination recommended for pig workers.', tag:'Mandatory', severity:'red' },
-      { title:'Manual Handling & Crush Safety', body:'Risk assessments for animal handling operations. ROPS-compliant tractors required. Crush and race structures must be inspected annually.', tag:'Mandatory', severity:'amber' },
-      { title:'Slurry & Confined Space', body:'Never enter slurry pits alone. Gas monitors required in confined spaces. Emergency rescue plan posted at all confined space entries.', tag:'Mandatory', severity:'red' },
+      { title:'A Farm Is a Workplace', body:'The Occupational Health and Safety Act applies to farms in full. Employers must provide a safe working environment, assess risks, maintain machinery, and train and supervise workers — seasonal and contract workers included.', tag:'Mandatory', severity:'red', ref:'Occupational Health and Safety Act 85 of 1993' },
+      { title:'Compensation Fund Registration', body:'Employers must register with the Compensation Fund, pay assessments, and report occupational injuries and diseases. An employer who has not registered carries the cost of an injury claim personally.', tag:'Mandatory', severity:'red', ref:'Compensation for Occupational Injuries and Diseases Act 130 of 1993' },
+      { title:'Dips, Remedies and Chemicals', body:'Anyone handling dips, remedies, disinfectants or medicated feed must be trained, issued the protective equipment the label specifies, and protected from exposure. Organophosphate dips in particular cause real poisonings on farms.', tag:'Mandatory', severity:'red', ref:'OHS Act 85 of 1993 — hazardous chemical agents regulations' },
+      { title:'Zoonotic Disease', body:'Brucellosis, rabies, anthrax, Rift Valley fever and Q fever all pass from animals to people, and several are controlled diseases that must also be reported to the state vet. Rabies exposure is a medical emergency, not a wait-and-see. Protective equipment for calving, lambing, post-mortems and carcass handling.', tag:'Mandatory', severity:'red', ref:'OHS Act 85 of 1993; Animal Diseases Act 35 of 1984' },
+      { title:'Tractors and Machinery', body:'Tractors and power-take-off driven machinery must be guarded, maintained and operated only by trained people. PTO entanglement and tractor rollovers remain among the most common causes of death on farms.', tag:'Mandatory', severity:'amber', ref:'OHS Act 85 of 1993 — driven machinery regulations' },
+      { title:'Handling Livestock', body:'Crushes, races and loading ramps must be sound and properly maintained. Crush injuries and bull attacks are among the most frequent serious injuries in livestock farming, and they happen in facilities people knew were worn out.', tag:'Mandatory', severity:'amber', ref:'Occupational Health and Safety Act 85 of 1993' },
     ]
   },
 ];

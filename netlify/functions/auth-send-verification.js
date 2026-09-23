@@ -2,6 +2,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { prisma } from '../lib/db.js';
 import { json, withUser } from '../lib/auth.js';
 import { sendEmail, confirmationEmail } from '../lib/email.js';
+import { appOrigin } from '../lib/origin.js';
 
 /**
  * POST /.netlify/functions/auth-send-verification -> { ok }
@@ -48,7 +49,7 @@ export default withUser(async (req, user) => {
       },
     });
 
-    const origin = process.env.APP_URL || new URL(req.url).origin;
+    const origin = appOrigin(req);
     const link = `${origin}/verify-email?token=${token}`;
     const { subject, html, text } = confirmationEmail({ name: user.name, link });
 

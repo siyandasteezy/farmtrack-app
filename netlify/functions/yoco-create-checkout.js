@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/db.js';
 import { json, withUser } from '../lib/auth.js';
 import { PLAN_AMOUNT_CENTS, PLAN_CURRENCY } from '../lib/billing.js';
+import { appOrigin } from '../lib/origin.js';
 
 /**
  * Creates a Yoco Checkout for one month of isibaya Pro and returns the hosted
@@ -34,7 +35,7 @@ export default withUser(async (req, user) => {
     }, 403);
   }
 
-  const origin = process.env.APP_URL || new URL(req.url).origin;
+  const origin = appOrigin(req);
 
   try {
     const res = await fetch(`${YOCO_API}/checkouts`, {

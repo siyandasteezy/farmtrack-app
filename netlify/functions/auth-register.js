@@ -5,6 +5,7 @@ import {
   publicUser, trialEnd, initialsOf, normaliseEmail, validPassword,
 } from '../lib/auth.js';
 import { sendEmail, confirmationEmail } from '../lib/email.js';
+import { appOrigin } from '../lib/origin.js';
 
 /**
  * POST /.netlify/functions/auth-register
@@ -53,7 +54,7 @@ export default async (req) => {
     // Send the confirmation straight away, but never fail registration over
     // it — the account exists, and the email can be resent from the profile.
     try {
-      const origin = process.env.APP_URL || new URL(req.url).origin;
+      const origin = appOrigin(req);
       const raw = randomBytes(32).toString('hex');
       await prisma.emailVerification.create({
         data: {

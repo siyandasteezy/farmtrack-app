@@ -157,6 +157,15 @@ export const COLLECTIONS = {
     },
     required: ['date', 'plantingCode', 'type'],
   },
+  deviceReadings: {
+    model: 'deviceReading',
+    orderBy: { receivedAt: 'desc' },
+    // Written only by the ingest endpoint, which authenticates a device rather
+    // than a session. Listed here so the app can read its own telemetry back;
+    // the empty field list means a browser cannot forge one.
+    fields: {},
+    required: [],
+  },
   cropHarvests: {
     model: 'cropHarvest',
     orderBy: { date: 'desc' },

@@ -38,25 +38,26 @@ model User {
   trialEndsAt        DateTime?
   subscriptionEndsAt DateTime?
 
-  verifications EmailVerification[]
-  payments      Payment[]
-  animals       Animal[]
-  healthRecords HealthRecord[]
-  inspections   Inspection[]
-  harvests      Harvest[]
-  colonyEvents  ColonyEvent[]
-  sensors       Sensor[]
-  readings      ManualReading[]
-  feedItems     FeedItem[]
-  equipment     Equipment[]
-  tickets       Ticket[]
-  devices       Device[]
-  zones         Zone[]
-  plantings     Planting[]
-  fieldOps      FieldOperation[]
-  cropHarvests  CropHarvest[]
-  farmProfile   FarmProfile?
-  farmBoundary  FarmBoundary?
+  verifications  EmailVerification[]
+  payments       Payment[]
+  animals        Animal[]
+  healthRecords  HealthRecord[]
+  inspections    Inspection[]
+  harvests       Harvest[]
+  colonyEvents   ColonyEvent[]
+  sensors        Sensor[]
+  readings       ManualReading[]
+  feedItems      FeedItem[]
+  equipment      Equipment[]
+  tickets        Ticket[]
+  devices        Device[]
+  zones          Zone[]
+  plantings      Planting[]
+  fieldOps       FieldOperation[]
+  cropHarvests   CropHarvest[]
+  deviceReadings DeviceReading[]
+  farmProfile    FarmProfile?
+  farmBoundary   FarmBoundary?
 }
 
 /// Single-use email confirmation link. Only the hash of the token is stored,
@@ -253,8 +254,9 @@ model Sensor {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  readings ManualReading[]
-  devices  Device[]
+  readings       ManualReading[]
+  devices        Device[]
+  deviceReadings DeviceReading[]
 
   @@index([userId])
 }
@@ -279,20 +281,21 @@ model ManualReading {
 }
 
 model Device {
-  id                String    @id @default(cuid())
+  id                String          @id @default(cuid())
   userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceId          String
   sensorId          String?
-  sensor            Sensor?   @relation(fields: [sensorId], references: [id], onDelete: SetNull)
-  protocol          String    @default("MQTT")
+  sensor            Sensor?         @relation(fields: [sensorId], references: [id], onDelete: SetNull)
+  protocol          String          @default("MQTT")
   // Retrievable on purpose: the Sensors page redisplays it in the firmware
   // snippet long after setup. Scoped to the owning account.
   token             String?
-  reportingInterval Int       @default(60)
-  status            String    @default("pending") // pending | online | offline
+  reportingInterval Int             @default(60)
+  status            String          @default("pending") // pending | online | offline
   lastSeen          DateTime?
-  createdAt         DateTime  @default(now())
+  createdAt         DateTime        @default(now())
+  deviceReadings    DeviceReading[]
 
   @@unique([userId, deviceId])
   @@index([userId])
@@ -499,4 +502,34 @@ model CropHarvest {
 
   @@index([userId, plantingCode])
   @@index([userId, date])
+}
+
+/// Telemetry posted by a physical device.
+///
+/// Kept apart from ManualReading on purpose. A manual reading is a person
+/// saying "the gauge says 24.3" and it overrides the sensor until cleared —
+/// mixing machine telemetry into that table would make an override
+/// indistinguishable from the device it was meant to override.
+model DeviceReading {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceId String
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  sensorId String?
+  sensor   Sensor? @relation(fields: [sensorId], references: [id], onDelete: SetNull)
+
+  value  Float
+  unit   String?
+  status String  @default("normal") // normal | warn | alert
+
+  /// When the device says it took the reading. Devices drift and lose power,
+  /// so this is kept separate from when it actually arrived rather than
+  /// trusted as the only timestamp.
+  recordedAt DateTime
+  receivedAt DateTime @default(now())
+
+  @@index([userId, receivedAt])
+  @@index([deviceId, receivedAt])
 }

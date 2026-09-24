@@ -15,6 +15,7 @@ const EMPTY = {
   livestock: [], health: [], inspections: [], harvests: [], colonyEvents: [],
   sensors: [], manualReadings: [], feed: [], equipment: [], tickets: [],
   devices: [], zones: [], plantings: [], fieldOps: [], cropHarvests: [],
+  deviceReadings: [],
   farmProfile: { name: '', address: '', country: '', area: '', areaUnit: 'ha', lat: '', lng: '' },
   farmBoundary: { type: 'circle', lat: -33.7300, lng: 19.0100, radius: 450 },
 };

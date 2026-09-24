@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
@@ -34,27 +34,34 @@ const ICON_OPTIONS = [
   '🌿','🐷','🐔','🐑','🐟','🦟','🏭','🛢️','🔋','📶',
 ];
 
+/* `available` is the honest bit. MQTT and WebSocket both need a process
+   listening continuously; isibaya runs on serverless functions that exist only
+   for the length of a request, so there is nothing for a device to hold a
+   connection to. They are left visible because they are the right answer for
+   some hardware and worth asking about — but they are not selectable, because
+   shipping a credential and a code snippet for an endpoint that does not exist
+   is how someone loses a weekend to a device that was never going to connect. */
 const PROTOCOLS = [
   {
-    id:'MQTT', label:'MQTT', icon:'📡',
-    color:'#3b82f6', bg:'#eff6ff', border:'#bfdbfe',
-    badge:'Recommended',
-    description:'Lightweight publish-subscribe protocol. Ideal for low-power devices, cellular modems, and unreliable networks.',
-    useCases:['Arduino / ESP32','Raspberry Pi','LoRa gateways','4G/LTE modems'],
-  },
-  {
-    id:'HTTP', label:'HTTP REST', icon:'🌐',
+    id:'HTTP', label:'HTTP REST', icon:'🌐', available:true,
     color:'#16a34a', bg:'#f0fdf4', border:'#bbf7d0',
-    badge:null,
-    description:'Standard HTTP POST to the isibaya REST API. Best for sensors with reliable Wi-Fi or Ethernet.',
-    useCases:['Wi-Fi sensors','Edge computers','PLC systems','Existing web-connected devices'],
+    badge:'Recommended',
+    description:'A POST per reading. Works from anything with an internet path — and it is the only transport isibaya accepts today.',
+    useCases:['ESP32 / Arduino','Raspberry Pi','Wi-Fi and LTE sensors','LoRa gateways with a bridge'],
   },
   {
-    id:'WebSocket', label:'WebSocket', icon:'⚡',
+    id:'MQTT', label:'MQTT', icon:'📡', available:false,
+    color:'#3b82f6', bg:'#eff6ff', border:'#bfdbfe',
+    badge:'Not available yet',
+    description:'Needs a broker holding connections open. Serverless functions cannot host one, so this would need an external broker bridging into the HTTP endpoint.',
+    useCases:['Low-power devices','Unreliable networks','Fleets reporting at once'],
+  },
+  {
+    id:'WebSocket', label:'WebSocket', icon:'⚡', available:false,
     color:'#f59e0b', bg:'#fffbeb', border:'#fde68a',
-    badge:null,
-    description:'Persistent bidirectional connection. Best for high-frequency readings where low latency matters.',
-    useCases:['High-speed sensors','Real-time displays','Industrial PLCs','Sub-second reporting'],
+    badge:'Not available yet',
+    description:'Needs a persistent socket server for the same reason. For sub-second reporting, talk to support about a dedicated ingest service.',
+    useCases:['High-frequency sensors','Real-time displays','Industrial PLCs'],
   },
 ];
 
@@ -95,88 +102,62 @@ function formatLoggedAt(iso){
   return new Date(iso).toLocaleString('en-ZA',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
-function generateDeviceId(){
-  return 'FT-' + Math.random().toString(16).slice(2,6).toUpperCase();
-}
-
-function generateToken(){
-  return 'ft_' + Array.from({length:40},()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
-}
+/* Real endpoint, resolved from wherever the app is being served so the snippet
+   works against a local dev server as well as production. The previous
+   snippets pointed at broker.isibaya.io and api.isibaya.io — neither of which
+   exists, nor is on a domain we own, so anything flashed from them failed
+   silently. */
+const ingestUrl = () =>
+  `${typeof window !== 'undefined' ? window.location.origin : 'https://isibaya.smartpick.co.za'}/.netlify/functions/ingest`;
 
 function getCodeSnippet(protocol, deviceId, token, sensor){
   const unit = sensor?.unit || '°C';
-  if (protocol==='MQTT') return `# Install: pip install paho-mqtt
-import paho.mqtt.client as mqtt
-import json, time
+  const url  = ingestUrl();
 
-DEVICE_ID = "${deviceId}"
-TOKEN     = "${token}"
-BROKER    = "broker.isibaya.io"
-TOPIC     = f"isibaya/devices/${deviceId}/telemetry"
-
-def read_sensor():
-    return 24.3  # ← Replace with your sensor read logic
-
-client = mqtt.Client(client_id=DEVICE_ID, protocol=mqtt.MQTTv5)
-client.username_pw_set(DEVICE_ID, TOKEN)
-client.connect(BROKER, 1883, keepalive=60)
-client.loop_start()
-
-while True:
-    payload = json.dumps({
-        "value": read_sensor(),
-        "unit":  "${unit}",
-        "ts":    int(time.time())
-    })
-    client.publish(TOPIC, payload, qos=1)
-    time.sleep(60)  # reporting interval`;
-
-  if (protocol==='HTTP') return `# cURL one-liner
-curl -X POST https://api.isibaya.io/v1/readings \\
+  if (protocol==='HTTP') return `# Check it works first — this should return 202
+curl -X POST ${url} \\
   -H "Authorization: Bearer ${token}" \\
   -H "Content-Type: application/json" \\
   -d '{"deviceId":"${deviceId}","value":24.3,"unit":"${unit}"}'
 
-# Python (requests)
+# ── Python ────────────────────────────────────────────────────────────
 import requests, time
 
-URL   = "https://api.isibaya.io/v1/readings"
+URL   = "${url}"
 TOKEN = "${token}"
 
+def read_sensor():
+    return 24.3  # ← replace with your sensor read
+
 while True:
-    resp = requests.post(URL,
+    r = requests.post(URL,
         headers={"Authorization": f"Bearer {TOKEN}"},
         json={"deviceId": "${deviceId}", "value": read_sensor(), "unit": "${unit}"},
-        timeout=10
-    )
-    print(resp.status_code, resp.json())
-    time.sleep(60)`;
+        timeout=10)
+    print(r.status_code, r.text)
+    time.sleep(60)   # reporting interval
 
-  return `// Node.js  (npm install ws)
-const WebSocket = require('ws');
+# ── ESP32 / Arduino (HTTPClient) ──────────────────────────────────────
+# HTTPClient http;
+# http.begin("${url}");
+# http.addHeader("Authorization", "Bearer ${token}");
+# http.addHeader("Content-Type", "application/json");
+# http.POST("{\\"deviceId\\":\\"${deviceId}\\",\\"value\\":24.3,\\"unit\\":\\"${unit}\\"}");`;
 
-const ws = new WebSocket('wss://ws.isibaya.io/live/${deviceId}');
-
-ws.on('open', () => {
-  // 1. Authenticate
-  ws.send(JSON.stringify({ type: 'auth', token: '${token}' }));
-
-  // 2. Send readings on your interval
-  setInterval(() => {
-    ws.send(JSON.stringify({
-      type:  'reading',
-      value: readSensor(),   // ← your sensor read
-      unit:  '${unit}',
-      ts:    Date.now(),
-    }));
-  }, 60_000);
-});
-
-ws.on('message', data => {
-  const msg = JSON.parse(data);
-  if (msg.type === 'ack') console.log('✓ Reading saved, id:', msg.readingId);
-  if (msg.type === 'alert') console.warn('⚠ Threshold alert:', msg.detail);
-});`;
+  // MQTT and WebSocket both need a process listening all the time. Netlify
+  // Functions only run in response to a request, so there is nothing here to
+  // connect to. Rather than print code that cannot work, say so.
+  return `# ${protocol} is not available yet.
+#
+# ${protocol === 'MQTT' ? 'An MQTT broker' : 'A WebSocket server'} has to hold connections open
+# continuously. isibaya runs on serverless functions, which only exist for the
+# length of a request, so there is no ${protocol === 'MQTT' ? 'broker' : 'socket'} to connect to.
+#
+# Use HTTP instead — it is the tab next to this one, it works today, and any
+# ESP32, Raspberry Pi or LoRa gateway with an internet path can post to it.
+#
+# If you need ${protocol} specifically, it needs a always-on service
+# (HiveMQ, EMQX or similar) bridging into the HTTP endpoint. Ask support.`;
 }
 
 /* ── Copy Button ────────────────────────────────────────────────────── */
@@ -415,7 +396,7 @@ function DeviceCard({device:d, sensor, onViewConfig, onRemove, onTestConnection}
         </div>
         {/* Status */}
         <div className={clsx('flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-xl',
-          isOnline?'text-green-700':'isOffline'?'text-red-600':'text-amber-600')}
+          isOnline?'text-green-700':isOffline?'text-red-600':'text-amber-600')}
           style={{background:isOnline?'#f0fdf4':isOffline?'#fef2f2':'#fffbeb',border:`1px solid ${isOnline?'#bbf7d0':isOffline?'#fecaca':'#fde68a'}`}}>
           {isOnline?<Wifi size={11}/>:isOffline?<WifiOff size={11}/>:<Clock size={11}/>}
           {d.status==='online'?'Online':d.status==='offline'?'Offline':'Pending'}
@@ -465,43 +446,90 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
   const [step,setStep]         = useState(0);
   const [sensorId,setSensorId] = useState(sensors[0]?.id||'');
   const [interval,setInterval] = useState(60);
-  const [protocol,setProtocol] = useState('MQTT');
-  const [deviceId]             = useState(generateDeviceId);
-  const [token]                = useState(generateToken);
+  const [protocol,setProtocol] = useState('HTTP');
+  // Minted by the server — see netlify/functions/device-credentials.js for why
+  // they are not generated here any more.
+  const [creds,setCreds]       = useState(null);
+  const [credError,setCredError] = useState('');
   const [showToken,setShowToken] = useState(false);
-  const [testState,setTestState] = useState('idle'); // idle|running|done|error
+  const [registered,setRegistered] = useState(false);
+  const [testState,setTestState] = useState('idle'); // idle|waiting|done|error
   const [testLog,setTestLog]   = useState([]);
 
-  const selectedSensor = sensors.find(s=>s.id===Number(sensorId)||s.id===sensorId);
-  const snippet = getCodeSnippet(protocol, deviceId, token, selectedSensor);
+  const deviceId = creds?.deviceId || '';
+  const token    = creds?.token || '';
 
-  const runTest = useCallback(()=>{
-    setTestState('running');
+  useEffect(()=>{
+    let cancelled = false;
+    (async ()=>{
+      try{
+        const r = await fetch('/.netlify/functions/device-credentials',{method:'POST',credentials:'same-origin'});
+        const d = await r.json().catch(()=>null);
+        if(cancelled) return;
+        if(!r.ok||!d?.token){ setCredError(d?.error||'Could not get device credentials.'); return; }
+        setCreds(d);
+      }catch{
+        if(!cancelled) setCredError('You need to be online to register a device.');
+      }
+    })();
+    return ()=>{ cancelled = true; };
+  },[]);
+
+  const selectedSensor = sensors.find(s=>s.id===Number(sensorId)||s.id===sensorId);
+  const snippet = creds ? getCodeSnippet(protocol, deviceId, token, selectedSensor) : '';
+
+  const log = (m)=> setTestLog(l=>[...l,m]);
+
+  /* Waits for the device to actually report.
+     This used to print a scripted ACK on a timer whether or not anything was
+     connected, which is worse than no check: it sent people away believing
+     hardware worked. Now it polls for a stored reading and says nothing until
+     one arrives. */
+  const runTest = useCallback(async ()=>{
+    setTestState('waiting');
     setTestLog([]);
-    const msgs=[
-      'Resolving broker endpoint…',
-      `Authenticating device ${deviceId}…`,
-      'Handshake complete — sending test payload…',
-      `✓ ACK received · payload: {"value":${selectedSensor?.value??24.3},"unit":"${selectedSensor?.unit??'°C'}","ts":${Date.now()}}`,
-    ];
-    let t=0;
-    msgs.forEach((m,i)=>{
-      t+=700;
-      setTimeout(()=>{
-        setTestLog(l=>[...l,m]);
-        if(i===msgs.length-1) setTestState('done');
-      },t);
-    });
-  },[deviceId,selectedSensor]);
+    log(`Listening for ${deviceId}…`);
+    log('Run the snippet on your device now. This waits up to 2 minutes.');
+
+    const deadline = Date.now() + 120000;
+    while(Date.now() < deadline){
+      try{
+        const r = await fetch(`/.netlify/functions/device-status?deviceId=${encodeURIComponent(deviceId)}`,{credentials:'same-origin'});
+        const d = await r.json().catch(()=>null);
+        if(d?.reported && d.latest){
+          log(`✓ Reading received — ${d.latest.value}${d.latest.unit?` ${d.latest.unit}`:''} (${d.latest.status})`);
+          if(d.latest.status!=='normal') log(`⚠ That value is outside the sensor's normal range.`);
+          setTestState('done');
+          return;
+        }
+      }catch{ /* keep waiting — a dropped poll is not a failed device */ }
+      await new Promise(r=>setTimeout(r,3000));
+    }
+    log('✗ Nothing received in 2 minutes.');
+    log('Check the device has internet, and that the token was copied whole.');
+    setTestState('error');
+  },[deviceId]);
+
+  const protoAvailable = PROTOCOLS.find(p=>p.id===protocol)?.available;
 
   const canNext = ()=>{
     if(step===0) return !!sensorId;
+    if(step===1) return !!protoAvailable;
+    if(step===2) return !!creds;
     return true;
   };
 
-  const finish = ()=>{
-    onComplete({sensorId:selectedSensor?.id, deviceId, token, protocol, reportingInterval:interval});
+  /* The device row is created on the way into Verify, not at the end — the
+     ingest endpoint has nothing to authenticate against until it exists. */
+  const next = ()=>{
+    if(step===2 && !registered){
+      onComplete({sensorId:selectedSensor?.id, deviceId, token, protocol, reportingInterval:interval});
+      setRegistered(true);
+    }
+    setStep(s=>s+1);
   };
+
+  const finish = ()=> onClose();
 
   return(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(15,23,42,.45)',backdropFilter:'blur(4px)'}}>
@@ -590,10 +618,10 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
                 <p className="text-sm text-slate-500">Select how your device will send data to isibaya.</p>
               </div>
               {PROTOCOLS.map(p=>(
-                <button key={p.id} onClick={()=>setProtocol(p.id)}
+                <button key={p.id} onClick={()=>p.available&&setProtocol(p.id)} disabled={!p.available}
                   className={clsx('w-full text-left rounded-2xl p-4 border-2 transition-all',
-                    protocol===p.id?'shadow-md':'hover:border-slate-300')}
-                  style={{borderColor:protocol===p.id?p.color:'#e2e8f0',background:protocol===p.id?p.bg:'#fff'}}>
+                    !p.available?'opacity-55 cursor-not-allowed':protocol===p.id?'shadow-md':'hover:border-slate-300')}
+                  style={{borderColor:protocol===p.id&&p.available?p.color:'#e2e8f0',background:protocol===p.id&&p.available?p.bg:'#fff'}}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2.5">
                       <span className="text-2xl">{p.icon}</span>
@@ -620,6 +648,14 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 mb-1">Device Credentials</h3>
                 <p className="text-sm text-slate-500">Flash or configure your device with these credentials. Keep the token secret.</p>
+                {credError&&(
+                  <div className="mt-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{background:'#fff5f5',border:'1px solid #fca5a5',color:'#dc2626'}}>
+                    ⚠ {credError}
+                  </div>
+                )}
+                {!creds&&!credError&&(
+                  <p className="mt-3 text-sm text-slate-400">Generating credentials…</p>
+                )}
               </div>
 
               {/* Credentials */}
@@ -676,7 +712,7 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
             <div className="flex flex-col gap-5">
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 mb-1">Verify Connection</h3>
-                <p className="text-sm text-slate-500">Run a simulated handshake to confirm your device credentials and network path are correct.</p>
+                <p className="text-sm text-slate-500">The device is registered. Run the snippet on it — this waits for a real reading to arrive and tells you what it was.</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 overflow-hidden">
@@ -688,41 +724,41 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
                 {/* Terminal body */}
                 <div className="p-4 min-h-[120px]" style={{background:'#0f172a'}}>
                   {testLog.length===0&&testState==='idle'&&(
-                    <p className="text-slate-500 text-xs font-mono">$ Press "Run Test" to begin...</p>
+                    <p className="text-slate-500 text-xs font-mono">$ Press "Wait for reading", then run the snippet on your device...</p>
                   )}
                   {testLog.map((line,i)=>(
-                    <p key={i} className={clsx('text-xs font-mono mb-1',line.startsWith('✓')?'text-green-400':'text-slate-300')}>{`> ${line}`}</p>
+                    <p key={i} className={clsx('text-xs font-mono mb-1',line.startsWith('✓')?'text-green-400':line.startsWith('✗')?'text-red-400':line.startsWith('⚠')?'text-amber-400':'text-slate-300')}>{`> ${line}`}</p>
                   ))}
-                  {testState==='running'&&(
+                  {testState==='waiting'&&(
                     <p className="text-xs font-mono text-slate-500 animate-pulse">{'> ▋'}</p>
                   )}
                   {testState==='done'&&(
                     <div className="mt-3 p-3 rounded-xl text-xs font-mono" style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.2)'}}>
-                      <p className="text-green-400 font-bold">✓ Device verified successfully!</p>
-                      <p className="text-slate-400 mt-1">Your device <span className="text-white font-bold">{deviceId}</span> is authenticated and ready to push data.</p>
+                      <p className="text-green-400 font-bold">✓ Reading received and stored.</p>
+                      <p className="text-slate-400 mt-1"><span className="text-white font-bold">{deviceId}</span> is live. Its readings now drive this sensor.</p>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="flex gap-3">
-                <button onClick={runTest} disabled={testState==='running'}
+                <button onClick={runTest} disabled={testState==='waiting'}
                   className={clsx('flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all',
-                    testState==='running'?'opacity-60 cursor-not-allowed':'hover:opacity-90')}
+                    testState==='waiting'?'opacity-60 cursor-not-allowed':'hover:opacity-90')}
                   style={{background:'linear-gradient(135deg,#0f172a,#1e293b)',color:testState==='done'?'#4ade80':'#94a3b8',border:'1px solid #334155'}}>
-                  <RefreshCw size={14} className={testState==='running'?'animate-spin':''}/> {testState==='running'?'Testing…':testState==='done'?'Re-run Test':'Run Test'}
+                  <RefreshCw size={14} className={testState==='waiting'?'animate-spin':''}/> {testState==='waiting'?'Waiting for a reading…':testState==='done'?'Wait again':'Wait for reading'}
                 </button>
                 {testState==='done'&&(
                   <button onClick={finish}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
                     style={{background:'linear-gradient(135deg,#16a34a,#15803d)'}}>
-                    <Check size={14}/> Complete Setup
+                    <Check size={14}/> Done
                   </button>
                 )}
               </div>
 
               {testState!=='done'&&(
-                <p className="text-xs text-slate-400 text-center">You can also skip testing and complete setup now — the connection will be marked <strong>Pending</strong> until your device sends its first reading.</p>
+                <p className="text-xs text-slate-400 text-center">You can close this now — the device is already registered and stays <strong>Pending</strong> until its first reading arrives, whenever that is.</p>
               )}
             </div>
           )}
@@ -736,7 +772,7 @@ function RegisterDeviceWizard({sensors, onClose, onComplete}){
           </button>
           <span className="text-xs text-slate-400">Step {step+1} of {STEPS.length}</span>
           {step<3?(
-            <button onClick={()=>setStep(s=>s+1)} disabled={!canNext()}
+            <button onClick={next} disabled={!canNext()}
               className={clsx('flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all',!canNext()?'opacity-40 cursor-not-allowed':'hover:opacity-90')}
               style={{background:'linear-gradient(135deg,#16a34a,#15803d)'}}>
               Next <ChevronRight size={14}/>
@@ -1083,7 +1119,10 @@ export default function Sensors(){
       {showAdd&&<AddSensorModal existingLocations={existingLocs} onClose={()=>setShowAdd(false)} onSave={s=>{addSensor(s);setShowAdd(false);}}/>}
       {activeManual&&<ManualEntryModal sensor={activeManual} onClose={()=>setActiveManual(null)} onSave={r=>{addManualReading(r);setActiveManual(null);}}/>}
       {deleteTarget&&<DeleteConfirm sensor={deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={removeSensor}/>}
-      {showWizard&&<RegisterDeviceWizard sensors={sensors} onClose={()=>setShowWizard(false)} onComplete={d=>{addDevice(d);setShowWizard(false);setTab('setup');}}/>}
+      {/* onComplete only registers the device — it fires on the way into the
+          Verify step, which needs the wizard to stay open so the reading can
+          be waited for. Closing is onClose's job. */}
+      {showWizard&&<RegisterDeviceWizard sensors={sensors} onClose={()=>{setShowWizard(false);setTab('setup');}} onComplete={d=>addDevice(d)}/>}
       {configDevice&&<ConfigViewer device={configDevice} sensor={configSensor} onClose={()=>setConfigDevice(null)}/>}
     </div>
   );

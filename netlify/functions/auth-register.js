@@ -4,13 +4,18 @@ import {
   json, hashPassword, createSessionToken, sessionCookie,
   publicUser, trialEnd, initialsOf, normaliseEmail, validPassword,
 } from '../lib/auth.js';
-import { sendEmail, confirmationEmail } from '../lib/email.js';
+import { sendEmail, confirmationEmail, signupNotification } from '../lib/email.js';
 import { appOrigin } from '../lib/origin.js';
 
 /**
  * POST /.netlify/functions/auth-register
  * { name, farm, email, password } -> { user }  + session cookie
  */
+
+/* Hardcoded rather than an env var, matching contact.js: it is a published
+   business address, not a secret, and putting it in the environment only
+   gives Netlify's secrets scanner something to trip over. */
+const OWNER_EMAIL = 'siyanda@smartpick.co.za';
 export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -69,6 +74,19 @@ export default async (req) => {
       if (!sent.ok) console.error('welcome confirmation not sent:', sent.error);
     } catch (mailErr) {
       console.error('welcome confirmation failed', mailErr);
+    }
+
+    // Let the owner know somebody signed up. Same rule as the confirmation
+    // above: a failed notification must never cost the user their account.
+    try {
+      const mail = signupNotification({
+        name: user.name, email: user.email, farm: user.farm,
+        enterprises: user.enterprises, joinedAt: user.createdAt,
+      });
+      const sent = await sendEmail({ to: OWNER_EMAIL, ...mail });
+      if (!sent.ok) console.error('signup notification not sent:', sent.error);
+    } catch (notifyErr) {
+      console.error('signup notification failed', notifyErr);
     }
 
     const token = await createSessionToken(user.id);

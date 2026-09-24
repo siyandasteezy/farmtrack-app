@@ -95,3 +95,59 @@ isibaya account, you can ignore this message.
 </body></html>`,
   };
 }
+
+/**
+ * Tells the owner that somebody signed up.
+ *
+ * Plain and small on purpose: it is an internal notification, read on a phone,
+ * and its whole job is to answer "who just joined and how do I reach them".
+ * The reply-to is set to the new user so replying goes straight to them.
+ */
+export function signupNotification({ name, email, farm, enterprises, joinedAt }) {
+  const runs = (enterprises?.length ? enterprises : ['livestock']).join(', ');
+  const when = joinedAt.toLocaleString('en-ZA', {
+    dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Johannesburg',
+  });
+
+  return {
+    subject: `New isibaya signup — ${name || email}`,
+    replyTo: email,
+    text:
+`${name || '(no name)'} just registered.
+
+Farm:     ${farm || '(not given)'}
+Email:    ${email}
+Farms:    ${runs}
+Signed up: ${when} (SAST)
+
+They are on a 14-day trial. Reply to this email to reach them directly.`,
+    html: `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.06);">
+        <tr>
+          <td style="background:linear-gradient(135deg,#14532d,#15803d);padding:24px 32px;">
+            <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-.3px;">🌱 New signup</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 32px;">
+            <p style="margin:0 0 20px;font-size:18px;font-weight:800;color:#0f172a;">${esc(name || '(no name)')}</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#475569;">
+              <tr><td style="padding:6px 0;width:96px;color:#94a3b8;">Farm</td><td style="padding:6px 0;font-weight:600;color:#0f172a;">${esc(farm || '(not given)')}</td></tr>
+              <tr><td style="padding:6px 0;color:#94a3b8;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${esc(email)}" style="color:#16a34a;text-decoration:none;">${esc(email)}</a></td></tr>
+              <tr><td style="padding:6px 0;color:#94a3b8;">Farms</td><td style="padding:6px 0;font-weight:600;color:#0f172a;">${esc(runs)}</td></tr>
+              <tr><td style="padding:6px 0;color:#94a3b8;">Signed up</td><td style="padding:6px 0;font-weight:600;color:#0f172a;">${esc(when)} SAST</td></tr>
+            </table>
+            <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#64748b;">
+              On a 14-day trial. Hit reply to reach them directly.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+  };
+}

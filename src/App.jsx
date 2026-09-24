@@ -19,6 +19,7 @@ import Sensors     from './pages/Sensors';
 import Feed        from './pages/Feed';
 import Regulations from './pages/Regulations';
 import Reports     from './pages/Reports';
+import Guides      from './pages/Guides';
 import Billing     from './pages/Billing';
 import Equipment   from './pages/Equipment';
 import Tracking    from './pages/Tracking';
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="/feed"        element={<Feed />} />
         <Route path="/regulations" element={<Regulations />} />
         <Route path="/reports"     element={<Reports />} />
+        <Route path="/guides"      element={<Guides />} />
         <Route path="/equipment"   element={<Equipment />} />
         <Route path="/tracking"    element={<Tracking />} />
         <Route path="/farm-plan"   element={<FarmPlan />} />

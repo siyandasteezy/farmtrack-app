@@ -49,7 +49,7 @@ export default function Login() {
             <LogoIcon size={80} />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">isibaya</h1>
-          <p className="text-slate-500 mt-1 text-sm">Livestock management for modern farms</p>
+          <p className="text-slate-500 mt-1 text-sm">Livestock, crops and bees — one farm, one login</p>
         </div>
 
         <div className="bg-white rounded-3xl p-8 fade-in"

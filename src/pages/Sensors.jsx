@@ -240,7 +240,7 @@ function SensorCard({sensor:s, onManualEntry, onClearOverride, onDelete}){
 
 /* ── Add Sensor Modal ───────────────────────────────────────────────── */
 
-function AddSensorModal({existingLocations,onClose,onSave}){
+function AddSensorModal({existingLocations,hives=[],onClose,onSave}){
   const BLANK={name:'',category:'Environment',icon:'📡',location:'',unit:'°C',min:0,max:100,value:0};
   const [form,setForm]=useState(BLANK);
   const [customCat,setCustomCat]=useState('');
@@ -267,7 +267,11 @@ function AddSensorModal({existingLocations,onClose,onSave}){
     const cat=useCustomCat?customCat.trim():form.category;
     const numMin=parseFloat(form.min),numMax=parseFloat(form.max),numVal=parseFloat(form.value);
     const status=numVal<numMin?'alert':numVal>numMax?'warn':'normal';
-    onSave({name:form.name.trim(),category:cat||'Environment',icon:form.icon,location:form.location.trim(),unit:form.unit.trim(),min:numMin,max:numMax,value:numVal,status,_custom:true});
+    onSave({name:form.name.trim(),category:cat||'Environment',icon:form.icon,location:form.location.trim(),unit:form.unit.trim(),min:numMin,max:numMax,value:numVal,status,
+      // Only meaningful on a kilogram sensor — a thermometer pointed at a hive
+      // is not a scale, and tagging it as one would put it in the weight totals.
+      hiveTag: /^kg$/i.test(form.unit.trim()) ? (form.hiveTag || null) : null,
+      _custom:true});
   };
 
   const inp=(err)=>clsx('w-full border rounded-xl px-3.5 py-2.5 text-sm text-slate-700 focus:outline-none transition-all',err?'border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100':'border-slate-200 focus:border-green-400 focus:ring-2 focus:ring-green-100');
@@ -297,6 +301,19 @@ function AddSensorModal({existingLocations,onClose,onSave}){
           </div>
           <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Location *</label><input value={form.location} onChange={e=>set('location',e.target.value)} placeholder="e.g. Barn 2, Fish Pond A, Field D…" list="sensor-locations" className={inp(errors.location)}/><datalist id="sensor-locations">{existingLocations.map(l=><option key={l} value={l}/>)}</datalist>{errors.location&&<p className="text-xs text-red-500 mt-1">{errors.location}</p>}<p className="text-[11px] text-slate-400 mt-1">Type a new location or pick an existing one from the suggestions.</p></div>
           <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Unit *</label><div className="flex gap-2 flex-wrap mb-2">{COMMON_UNITS.map(u=><button key={u} onClick={()=>set('unit',u)} className={clsx('px-2.5 py-1 rounded-lg text-xs font-bold border transition-all',form.unit===u?'text-white border-green-600':'bg-white border-slate-200 text-slate-500 hover:border-green-300')} style={form.unit===u?{background:'linear-gradient(135deg,#16a34a,#15803d)'}:{}}>{u}</button>)}</div><input value={form.unit} onChange={e=>set('unit',e.target.value)} placeholder="Or type a custom unit…" className={inp(errors.unit)}/>{errors.unit&&<p className="text-xs text-red-500 mt-1">{errors.unit}</p>}</div>
+          {/^kg$/i.test(form.unit.trim()) && hives.length > 0 && (
+            <div className="rounded-xl p-3.5" style={{background:'#f0fdf4',border:'1px solid #bbf7d0'}}>
+              <label className="block text-xs font-bold mb-1.5" style={{color:'#15803d'}}>⚖️ Weighing a hive?</label>
+              <select value={form.hiveTag||''} onChange={e=>set('hiveTag',e.target.value)} className={inp(false)}>
+                <option value="">No — this is a general weight sensor</option>
+                {hives.map(h=><option key={h.id} value={h.tag}>{h.tag}{h.location?` — ${h.location}`:''}</option>)}
+              </select>
+              <p className="text-[11px] mt-1.5" style={{color:'#15803d'}}>
+                Linking it turns on stores tracking and flow alerts for that hive. Set its empty
+                and with-colony weights on the hive record, or isibaya cannot tell honey from bees.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-3">
             {[['Min Value *','min'],['Max Value *','max'],['Initial Reading *','value']].map(([lbl,k])=>(
               <div key={k}><label className="block text-xs font-bold text-slate-600 mb-1.5">{lbl}</label><input type="number" step="any" value={form[k]} onChange={e=>set(k,e.target.value)} className={inp(errors[k])}/>{errors[k]&&<p className="text-xs text-red-500 mt-1">{errors[k]}</p>}</div>
@@ -847,7 +864,9 @@ function ConfigViewer({device:d, sensor, onClose}){
 /* ── Page ───────────────────────────────────────────────────────────── */
 
 export default function Sensors(){
-  const { sensors, addSensor, removeSensor, addManualReading, removeManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice, zones } = useData();
+  const { sensors, addSensor, removeSensor, addManualReading, removeManualReading, clearManualOverride, manualReadings, devices, addDevice, updateDevice, removeDevice, zones, livestock } = useData();
+  // Hives are animals with species "Bee" — a scale is linked to one by tag.
+  const hives = useMemo(() => livestock.filter(a => a.species === 'Bee'), [livestock]);
 
   const [tab,setTab]               = useState('dashboard');
   const [cat,setCat]               = useState('All');
@@ -1116,7 +1135,7 @@ export default function Sensors(){
       )}
 
       {/* Modals */}
-      {showAdd&&<AddSensorModal existingLocations={existingLocs} onClose={()=>setShowAdd(false)} onSave={s=>{addSensor(s);setShowAdd(false);}}/>}
+      {showAdd&&<AddSensorModal existingLocations={existingLocs} hives={hives} onClose={()=>setShowAdd(false)} onSave={s=>{addSensor(s);setShowAdd(false);}}/>}
       {activeManual&&<ManualEntryModal sensor={activeManual} onClose={()=>setActiveManual(null)} onSave={r=>{addManualReading(r);setActiveManual(null);}}/>}
       {deleteTarget&&<DeleteConfirm sensor={deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={removeSensor}/>}
       {/* onComplete only registers the device — it fires on the way into the

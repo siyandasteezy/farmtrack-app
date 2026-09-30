@@ -77,6 +77,24 @@ export const GUIDES = {
           'report it — see Regulations → Beekeeping & Apiaries for what that involves.',
       },
       {
+        title: 'Put a scale under a hive',
+        to: '/apiary',
+        where: 'Livestock → hive record · Sensors · then Apiary → Scales',
+        body:
+          'A scale is the one sensor that tells you what a colony is doing without opening ' +
+          'it. Weigh the hive empty, then again once the colony is settled, and put both ' +
+          'figures on the hive record. Add a sensor with kg as its unit, pick the hive it ' +
+          'stands under, and point it at the ingest endpoint. The Scales tab then shows ' +
+          'weight, stores, and whether a flow is on.',
+        warn:
+          'Two weights, not one. Weight above an empty hive is not honey — bees, brood and ' +
+          'drawn comb are most of it. Without the with-colony figure isibaya will not guess ' +
+          'at your stores, and that is deliberate.',
+        note:
+          'A scale sits under one hive. An apiary\'s figure is the sum of the hives in it ' +
+          'that are actually on scales, and the page says how many are not.',
+      },
+      {
         title: 'Record every health event',
         to: '/health',
         where: 'Health & Vet → Add record',

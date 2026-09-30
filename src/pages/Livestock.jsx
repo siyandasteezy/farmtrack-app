@@ -57,6 +57,9 @@ function AnimalForm({ animal, existingAnimals, defaultSpecies = 'Cattle', onSave
     queenStatus: animal?.queenStatus || 'Queenright',
     queenYear: animal?.queenYear || '',
     queenColour: animal?.queenColour || 'Unmarked',
+    tareKg: animal?.tareKg ?? '',
+    baselineKg: animal?.baselineKg ?? '',
+    minStoresKg: animal?.minStoresKg ?? '',
     qty: 1,
   }));
   const [tagEdited, setTagEdited] = useState(false);
@@ -92,10 +95,17 @@ function AnimalForm({ animal, existingAnimals, defaultSpecies = 'Cattle', onSave
     if (bee) {
       // A colony has a queen, not a sex.
       delete base.sex;
+      // Blank stays blank rather than becoming 0 — an unset reference weight
+      // must not read as a hive that weighs nothing.
+      const kg = (v) => (v === '' || v === null || v === undefined ? null : parseFloat(v));
+      base.tareKg = kg(form.tareKg);
+      base.baselineKg = kg(form.baselineKg);
+      base.minStoresKg = kg(form.minStoresKg);
     } else {
       // Non-bee records keep no hive fields, so the rest of the app stays clean.
       delete base.strength; delete base.queenStatus;
       delete base.queenYear; delete base.queenColour;
+      delete base.tareKg; delete base.baselineKg; delete base.minStoresKg;
     }
 
     if (isNew && qty > 1) {
@@ -185,6 +195,54 @@ function AnimalForm({ animal, existingAnimals, defaultSpecies = 'Cattle', onSave
             </datalist>
           </FormField>
         </div>
+
+        {/* Scale reference points. Two are needed because weight above an
+            empty hive is not honey — bees, brood and drawn comb are most of
+            it — so stores are measured against the established colony. */}
+        {bee && (
+          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            <div className="text-xs font-bold uppercase tracking-wider" style={{ color: '#15803d' }}>
+              ⚖️ Scale reference weights
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Only needed if this hive stands on a scale. Weigh it twice: bare woodware
+              before the bees go in, then again once the colony is established and before
+              the flow. isibaya measures stores from the second figure, because the first
+              still has the bees and comb to come.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <FormField label="Empty (kg)" hint="Boxes, frames, floor, lid">
+                <Input type="number" step="0.1" min="0" placeholder="e.g. 20"
+                  value={form.tareKg} onChange={set('tareKg')} />
+              </FormField>
+              <FormField label="With colony (kg)" hint="Established, before stores">
+                <Input type="number" step="0.1" min="0" placeholder="e.g. 30"
+                  value={form.baselineKg} onChange={set('baselineKg')} />
+              </FormField>
+              <FormField label="Warn below (kg)" hint="Stores level to flag">
+                <Input type="number" step="0.1" min="0" placeholder="optional"
+                  value={form.minStoresKg} onChange={set('minStoresKg')} />
+              </FormField>
+            </div>
+            {form.tareKg !== '' && form.baselineKg !== '' &&
+              Number(form.baselineKg) > Number(form.tareKg) && (
+              <p className="text-xs font-semibold" style={{ color: '#15803d' }}>
+                Colony and comb weigh about {(Number(form.baselineKg) - Number(form.tareKg)).toFixed(1)} kg.
+                Anything above {Number(form.baselineKg).toFixed(1)} kg counts as stores.
+              </p>
+            )}
+            {form.tareKg !== '' && form.baselineKg !== '' &&
+              Number(form.baselineKg) <= Number(form.tareKg) && (
+              <p className="text-xs font-semibold" style={{ color: '#b45309' }}>
+                ⚠ The hive with its colony should weigh more than the empty box — check these two around the right way.
+              </p>
+            )}
+            <p className="text-xs text-slate-400 leading-relaxed">
+              No default warning level is set. What a colony needs to get through a dearth
+              depends on your region and how long it runs, so this is yours to decide.
+            </p>
+          </div>
+        )}
 
         {/* Queen — the one individually-tracked bee in a colony */}
         {bee && (

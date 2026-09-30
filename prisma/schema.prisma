@@ -115,6 +115,19 @@ model Animal {
   queenYear   String?
   queenColour String?
 
+  /// Hive scale reference points, in kilograms.
+  ///
+  /// Two are needed, not one. Weight above an empty hive is not honey: bees,
+  /// brood and drawn comb are most of it. tareKg is the woodware alone;
+  /// baselineKg is that plus an established colony before a flow, and it is
+  /// the only honest thing to measure stores against.
+  tareKg      Float?
+  baselineKg  Float?
+  /// Warn below this many kilograms of stores. No default — what a colony
+  /// needs depends on the region and how long the dearth runs, and a number
+  /// invented here would be guessed advice about starving bees.
+  minStoresKg Float?
+
   // GPS tracker / hive sensor
   trackerDeviceId String?
   trackerBattery  Int?
@@ -242,6 +255,10 @@ model Sensor {
   category     String    @default("Environment")
   icon         String?
   location     String?
+  /// Set when this sensor is a scale under a hive, referencing Animal.tag the
+  /// way inspections and harvests do. A scale weighs one hive; an apiary's
+  /// figure is the sum of the scaled hives standing in it.
+  hiveTag      String?
   unit         String
   min          Float     @default(0)
   max          Float     @default(100)

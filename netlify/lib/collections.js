@@ -37,6 +37,7 @@ export const COLLECTIONS = {
       tag: str, name: str, species: str, breed: str, dob: date, sex: str,
       weight: num, location: str, status: str, notes: str,
       strength: str, queenStatus: str, queenYear: str, queenColour: str,
+      tareKg: num, baselineKg: num, minStoresKg: num,
       trackerDeviceId: str, trackerBattery: int, trackerLat: num,
       trackerLng: num, trackerLastSeen: date,
     },
@@ -77,7 +78,7 @@ export const COLLECTIONS = {
     model: 'sensor',
     orderBy: { createdAt: 'asc' },
     fields: {
-      name: str, category: str, icon: str, location: str, unit: str,
+      name: str, category: str, icon: str, location: str, unit: str, hiveTag: str,
       min: num, max: num, value: num, initialValue: num, status: str,
       isManual: bool, isCustom: bool, lastManualAt: date,
     },

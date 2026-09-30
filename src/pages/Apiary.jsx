@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Trash2, Pencil, TrendingUp, TrendingDown, Minus, TriangleAlert } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { StatCard } from '../components/StatCard';
 import { Modal } from '../components/Modal';
@@ -10,6 +11,9 @@ import {
   HIVE_PESTS, NOTIFIABLE_PESTS, HIVE_PRODUCTS,
   COLONY_EVENTS, COLONY_LOSS_EVENTS,
 } from '../data/livestock';
+import {
+  scaleForHive, hiveWeightStatus, apiaryWeights, MOVEMENT,
+} from '../data/hiveScales';
 
 const EVENT_ICON = {
   'Swarmed': '🐝', 'Swarm caught / hived': '🪤', 'Requeened': '👑',
@@ -319,7 +323,7 @@ function EventForm({ record, hives, onSave, onClose }) {
 
 export default function Apiary() {
   const {
-    livestock,
+    livestock, sensors, deviceReadings,
     inspections,  addInspection,  updateInspection,  removeInspection,
     harvests,     addHarvest,     updateHarvest,     removeHarvest,
     colonyEvents, addColonyEvent, updateColonyEvent, removeColonyEvent,
@@ -392,16 +396,45 @@ export default function Apiary() {
     }).sort((a, b) => b.hives - a.hives);
   }, [hives, harvests, latestByHive, colonyEvents]);
 
+  /* Scale readings, grouped by the hive their sensor sits under. */
+  const readingsByHive = useMemo(() => {
+    const bySensor = {};
+    for (const r of deviceReadings) {
+      if (!r.sensorId) continue;
+      (bySensor[r.sensorId] ||= []).push(r);
+    }
+    const out = {};
+    for (const s of sensors) {
+      if (s.hiveTag && bySensor[s.id]) out[s.hiveTag] = bySensor[s.id];
+    }
+    return out;
+  }, [deviceReadings, sensors]);
+
+  const scaled = useMemo(() => hives
+    .map(h => {
+      const sensor = scaleForHive(h.tag, sensors);
+      return { hive: h, sensor, status: hiveWeightStatus(h, sensor, readingsByHive[h.tag] || []) };
+    })
+    .filter(r => r.sensor),
+    [hives, sensors, readingsByHive]);
+
+  const weightSites = useMemo(
+    () => apiaryWeights(hives, sensors, readingsByHive),
+    [hives, sensors, readingsByHive]);
+
+  const scaleAlerts = weightSites.reduce((n, s) => n + s.alerts.length, 0);
+
   const TABS = [
     { key: 'inspections', label: `Inspections (${inspections.length})` },
     { key: 'harvests',    label: `Harvests (${harvests.length})` },
     { key: 'events',      label: `Events (${colonyEvents.length})` },
     { key: 'apiaries',    label: `Apiaries (${apiaries.length})` },
+    { key: 'scales',      label: `Scales (${scaled.length})` },
   ];
 
   const closeModal = () => setModal(null);
-  const ADD_LABEL = { inspections: 'Add inspection', harvests: 'Log harvest', events: 'Log event', apiaries: 'Add inspection' };
-  const ADD_MODAL = { inspections: 'add-inspection', harvests: 'add-harvest', events: 'add-event', apiaries: 'add-inspection' };
+  const ADD_LABEL = { inspections: 'Add inspection', harvests: 'Log harvest', events: 'Log event', apiaries: 'Add inspection', scales: 'Add inspection' };
+  const ADD_MODAL = { inspections: 'add-inspection', harvests: 'add-harvest', events: 'add-event', apiaries: 'add-inspection', scales: 'add-inspection' };
   const addLabel = ADD_LABEL[tab];
 
   return (
@@ -429,7 +462,12 @@ export default function Apiary() {
           sub={`${apiaries.length} apiar${apiaries.length === 1 ? 'y' : 'ies'}`} color="amber" />
         <StatCard icon="🔍" label="Inspections (30d)" value={recentCount} sub={`${inspections.length} all time`} color="blue" />
         <StatCard icon="🍯" label="Honey harvested" value={`${honeyKg.toFixed(1)} kg`} sub={`${harvests.length} harvests`} color="amber" />
-        <StatCard icon="⚠️" label="Needs attention" value={needsAttention} sub="From latest inspection" color={needsAttention > 0 ? 'red' : 'green'} />
+        <StatCard icon="⚠️" label="Needs attention"
+          value={needsAttention + scaleAlerts}
+          sub={scaleAlerts > 0
+            ? `${needsAttention} from inspections · ${scaleAlerts} from scales`
+            : 'From latest inspection'}
+          color={needsAttention + scaleAlerts > 0 ? 'red' : 'green'} />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-5"
@@ -454,6 +492,155 @@ export default function Apiary() {
             <p className="text-sm font-medium">No hives yet</p>
             <p className="text-xs mt-1">Add them under Livestock → Bee, then inspections and harvests can be logged here.</p>
           </div>
+        ) : tab === 'scales' ? (
+          scaled.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-2">⚖️</div>
+              <p className="text-sm font-medium">No hive scales yet</p>
+              <p className="text-xs mt-1 max-w-md mx-auto leading-relaxed">
+                A scale under a hive tells you whether a flow is on and whether the stores
+                will last, without opening the box and setting the colony back.
+              </p>
+              <div className="text-xs mt-4 max-w-md mx-auto text-left rounded-xl p-4"
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div className="font-bold text-slate-600 mb-2">Setting one up</div>
+                <ol className="flex flex-col gap-1.5 text-slate-500 list-decimal ml-4">
+                  <li>Weigh the hive empty, then again once the colony is settled. Put both on the
+                      hive under <Link to="/livestock" className="font-semibold" style={{ color: '#16a34a' }}>Livestock</Link>.</li>
+                  <li>Add a sensor in <Link to="/sensors" className="font-semibold" style={{ color: '#16a34a' }}>Sensors</Link> with
+                      kg as its unit, and pick the hive it stands under.</li>
+                  <li>Point the scale at the ingest endpoint using the snippet the device setup gives you.</li>
+                </ol>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {/* Per-apiary roll-up — a site's figure is the sum of its scaled hives. */}
+              {weightSites.filter(s => s.scaled > 0).length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {weightSites.filter(s => s.scaled > 0).map(site => (
+                    <div key={site.name} className="rounded-2xl p-4"
+                      style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+                      <div className="font-extrabold text-slate-800">{site.name}</div>
+                      <div className="text-2xl font-extrabold mt-1" style={{ color: '#15803d' }}>
+                        {site.totalKg} kg
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        across {site.scaled} scaled hive{site.scaled === 1 ? '' : 's'}
+                        {site.scaled < site.hives && ` · ${site.hives - site.scaled} not weighed`}
+                      </div>
+                      {site.totalStores !== null && (
+                        <div className="text-sm font-bold mt-2" style={{ color: site.totalStores > 0 ? '#b45309' : '#64748b' }}>
+                          🍯 about {site.totalStores} kg of stores
+                        </div>
+                      )}
+                      {site.alerts.length > 0 && (
+                        <div className="text-xs font-bold mt-2 flex items-center gap-1" style={{ color: '#b91c1c' }}>
+                          <TriangleAlert size={12} /> {site.alerts.length} hive{site.alerts.length === 1 ? '' : 's'} needing a look
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* One card per scaled hive */}
+              <div className="flex flex-col gap-3">
+                {scaled.map(({ hive, status }) => {
+                  if (!status) return (
+                    <div key={hive.id} className="rounded-2xl p-4 flex items-center justify-between"
+                      style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <div>
+                        <span className="font-mono font-bold text-sm text-slate-700">{hive.tag}</span>
+                        <span className="text-xs text-slate-400 ml-2">{hive.location || 'Unassigned'}</span>
+                      </div>
+                      <span className="text-xs text-slate-400">Scale linked — waiting for its first reading</span>
+                    </div>
+                  );
+                  const mv = MOVEMENT[status.movement];
+                  const tone = { green:'#15803d', amber:'#b45309', red:'#b91c1c', slate:'#64748b' }[mv.tone];
+                  const bg   = { green:'#f0fdf4', amber:'#fffbeb', red:'#fef2f2', slate:'#f8fafc' }[mv.tone];
+                  const brd  = { green:'#bbf7d0', amber:'#fde68a', red:'#fecaca', slate:'#e2e8f0' }[mv.tone];
+                  const Arrow = status.movement === 'flow' ? TrendingUp
+                    : status.movement === 'steady' ? Minus : TrendingDown;
+                  return (
+                    <div key={hive.id} className="rounded-2xl p-4" style={{ background:'#fff', border:'1px solid #e2e8f0' }}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <span className="font-mono font-bold text-sm bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">{hive.tag}</span>
+                          <span className="text-xs text-slate-400 ml-2">{hive.location || 'Unassigned'}</span>
+                          <div className="text-3xl font-extrabold text-slate-900 mt-2">{status.currentKg} <span className="text-lg text-slate-400">kg</span></div>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                            style={{ background: bg, color: tone, border: `1px solid ${brd}` }}>
+                            <Arrow size={12} /> {mv.label}
+                          </span>
+                          {status.week && !status.thin && (
+                            <div className="text-xs text-slate-500 mt-1.5">
+                              {status.week.perDay > 0 ? '+' : ''}{status.week.perDay} kg/day over {status.week.days} days
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-5 mt-3 pt-3" style={{ borderTop: '1px solid #f1f5f9' }}>
+                        {status.stores !== null ? (
+                          <div>
+                            <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Stores</div>
+                            <div className="text-sm font-bold" style={{ color: status.lowStores ? '#b91c1c' : '#b45309' }}>
+                              about {status.stores} kg
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                            Set this hive's empty and with-colony weights under{' '}
+                            <Link to="/livestock" className="font-semibold" style={{ color: '#16a34a' }}>Livestock</Link>{' '}
+                            to separate honey from the weight of the bees.
+                          </div>
+                        )}
+                        {status.colonyKg !== null && (
+                          <div>
+                            <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Colony &amp; comb</div>
+                            <div className="text-sm font-bold text-slate-600">{status.colonyKg} kg</div>
+                          </div>
+                        )}
+                        {status.dayOverDay !== null && (
+                          <div>
+                            <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Since yesterday</div>
+                            <div className="text-sm font-bold text-slate-600">
+                              {status.dayOverDay > 0 ? '+' : ''}{status.dayOverDay} kg
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {status.thin && (
+                        <p className="text-xs text-slate-400 mt-3">
+                          Only {status.days} day{status.days === 1 ? '' : 's'} of readings — not enough to call a trend yet.
+                        </p>
+                      )}
+                      {status.movement === 'drop' && (
+                        <div className="text-sm font-semibold mt-3 px-3 py-2.5 rounded-xl"
+                          style={{ background:'#fef2f2', border:'1px solid #fecaca', color:'#991b1b' }}>
+                          ⚠ {mv.hint} If you harvested, log it and this clears itself.
+                        </div>
+                      )}
+                      {status.lowStores && (
+                        <div className="text-sm font-semibold mt-3 px-3 py-2.5 rounded-xl"
+                          style={{ background:'#fffbeb', border:'1px solid #fde68a', color:'#92400e' }}>
+                          ⚠ Stores are under the {status.minStoresKg} kg you set for this hive. It may need feeding.
+                        </div>
+                      )}
+                      {status.movement !== 'drop' && !status.lowStores && !status.thin && (
+                        <p className="text-xs text-slate-400 mt-3">{mv.hint}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
         ) : tab === 'apiaries' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

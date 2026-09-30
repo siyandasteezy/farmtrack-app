@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
+import { LogoLockup } from './Logo';
 
 /* `only` limits an item to farms running that enterprise. Items without it
    are shared and always shown. This hides navigation, never data — a farm
@@ -55,18 +56,13 @@ export function Sidebar({ open, onClose }) {
         {/* Brand */}
         <div className="flex items-center justify-between px-5 pt-6 pb-5"
           style={{ borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-2xl"
-              style={{ background: 'rgba(255,255,255,.12)', backdropFilter: 'blur(8px)' }}>
-              🐄
-            </div>
-            <div>
-              <div className="text-white font-extrabold text-lg leading-none tracking-tight">isibaya</div>
-              <div className="text-[11px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-md inline-block"
-                style={{ background: 'rgba(255,255,255,.15)', color: 'rgba(255,255,255,.8)' }}>
-                PRO
-              </div>
-            </div>
+          <div className="flex items-center gap-2.5">
+            {/* Reversed lockup — the sidebar is dark green. */}
+            <LogoLockup height={26} reversed />
+            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
+              style={{ background: 'rgba(255,255,255,.15)', color: 'rgba(255,255,255,.8)' }}>
+              PRO
+            </span>
           </div>
           <button
             onClick={onClose}

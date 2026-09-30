@@ -4,6 +4,7 @@ import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { FormField, Input, Btn } from '../components/FormField';
 import { AlertBox } from '../components/AlertBox';
+import { LogoIcon } from '../components/Logo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -42,10 +43,10 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8 fade-in">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #14532d, #166534, #15803d)', boxShadow: '0 8px 32px rgba(21,128,61,.3)' }}
+            className="mx-auto mb-4"
+            style={{ width: 80, filter: 'drop-shadow(0 8px 32px rgba(21,128,61,.3))' }}
           >
-            🐄
+            <LogoIcon size={80} />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">isibaya</h1>
           <p className="text-slate-500 mt-1 text-sm">Livestock management for modern farms</p>

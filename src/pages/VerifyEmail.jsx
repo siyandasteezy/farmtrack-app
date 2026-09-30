@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Btn } from '../components/FormField';
+import { LogoIcon } from '../components/Logo';
 
 const bgStyle = { background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 40%, #bbf7d0 100%)' };
 
@@ -61,8 +62,9 @@ export default function VerifyEmail() {
     <div className="min-h-screen flex items-center justify-center p-4" style={bgStyle}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #14532d, #166534, #15803d)' }}>🐄</div>
+          <div className="mx-auto mb-4" style={{ width: 64, filter: 'drop-shadow(0 6px 20px rgba(21,128,61,.28))' }}>
+            <LogoIcon size={64} />
+          </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">isibaya</h1>
         </div>
 

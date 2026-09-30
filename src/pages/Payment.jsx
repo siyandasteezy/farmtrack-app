@@ -4,6 +4,7 @@ import { Lock, CheckCircle, ChevronRight, Shield, X, Loader2 } from 'lucide-reac
 import { useAuth } from '../context/AuthContext';
 import { Btn } from '../components/FormField';
 import { AlertBox } from '../components/AlertBox';
+import { LogoIcon } from '../components/Logo';
 
 const PRICE = 'R1,800';
 const FN = '/.netlify/functions';
@@ -152,9 +153,8 @@ export default function Payment() {
 
         {/* Header */}
         <div className="text-center mb-8 fade-in">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4"
-            style={{ background: 'linear-gradient(135deg, #14532d, #166534, #15803d)', boxShadow: '0 8px 24px rgba(21,128,61,.3)' }}>
-            🐄
+          <div className="mx-auto mb-4" style={{ width: 64, filter: 'drop-shadow(0 8px 24px rgba(21,128,61,.3))' }}>
+            <LogoIcon size={64} />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">isibaya Pro</h1>
           <p className="text-slate-500 mt-1 text-sm">Complete livestock management for your farm</p>

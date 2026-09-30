@@ -54,10 +54,10 @@ export default function Billing() {
             </div>
           </div>
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1px solid #bbf7d0' }}
           >
-            🐄
+            <img src="/brand/isibaya-mark-colour.svg" alt="" width={30} height={30} />
           </div>
         </div>
 

@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Radio, HeartPulse, Wheat, ShieldCheck, BarChart3, MapPin,
   Tractor, Map, LayoutDashboard, ArrowRight, Check, Sparkles, Mail,
+  Sprout, FlaskConical, Hexagon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { MarketingNav, MarketingFooter } from '../components/MarketingChrome';
 import { FormField, Input, Textarea, Btn } from '../components/FormField';
 import { AlertBox } from '../components/AlertBox';
 
@@ -16,28 +18,33 @@ const IMG = {
   barn:   'https://images.unsplash.com/photo-1636998980792-63f27ddea4e3?auto=format&fit=crop&w=1100&q=80',
   field:  'https://images.unsplash.com/photo-1615909495126-3554c248bf33?auto=format&fit=crop&w=1100&q=80',
   ctaBg:  'https://images.unsplash.com/photo-1594987057733-1fb3fe5707c9?auto=format&fit=crop&w=1800&q=80',
+  vineyard: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=1100&q=80',
 };
 
 const FEATURES = [
-  { icon: LayoutDashboard, title: 'Livestock records', desc: 'Track every animal across 11+ species with full profiles, breeding and lifecycle histories.' },
+  { icon: LayoutDashboard, title: 'Livestock records', desc: 'Track every animal across 11 species with full profiles, breeding and lifecycle histories.' },
+  { icon: Sprout, title: 'Plantings & field work', desc: 'Fruit, vegetables and grain — every block from planting through spraying to harvest.' },
+  { icon: FlaskConical, title: 'Spray & withholding records', desc: 'L-numbers, rates and withholding periods, with a warning before a harvest lands inside one.' },
   { icon: Radio, title: 'Real-time IoT sensors', desc: 'Live temperature, humidity, water and air-quality readings streamed straight to your dashboard.' },
   { icon: HeartPulse, title: 'Health & vet records', desc: 'Vaccinations, treatments and vet visits captured in one clear, searchable timeline.' },
   { icon: Wheat, title: 'Feed & nutrition', desc: 'Plan rations, track consumption and keep feed costs under control across every herd.' },
   { icon: MapPin, title: 'GPS tracking', desc: 'Locate animals in real time with assigned trackers and live map positions.' },
   { icon: Map, title: 'Farm planning', desc: 'Map your boundaries, paddocks and grazing zones to plan the whole operation.' },
   { icon: Tractor, title: 'Equipment', desc: 'Log machinery, maintenance and service schedules so nothing slips through.' },
-  { icon: ShieldCheck, title: 'Compliance', desc: 'Stay ahead of livestock regulations with a built-in, always-current guide.' },
+  { icon: ShieldCheck, title: 'SA compliance', desc: 'Sixty-five regulation items for livestock and crops, each citing the Act it comes from.' },
   { icon: BarChart3, title: 'Reports & analytics', desc: 'Turn your data into actionable insights across the entire farm.' },
 ];
 
 const PLAN_FEATURES = [
-  'Unlimited livestock records',
-  'All species management (11+ types)',
+  'Unlimited livestock and crop records',
+  'All 11 livestock species, bees included',
+  'Plantings, spray records & harvest tracking',
+  'Withholding-period warnings before you harvest',
   'Real-time IoT sensor dashboard',
   'Health & vet record tracking',
   'Feed & nutrition management',
   'GPS tracking & farm planning',
-  'Regulatory compliance guide',
+  'South African regulatory guide, with citations',
   'Advanced reports & analytics',
   'Email support & software updates',
 ];
@@ -143,22 +150,7 @@ export default function Home() {
   return (
     <div className="min-h-screen text-slate-800 bg-white">
 
-      {/* ── Nav ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 glass border-b border-slate-200/60">
-        <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="text-lg font-extrabold tracking-tight text-slate-900">isibaya</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {!user && (
-              <Link to="/login"><Btn variant="ghost" size="md">Sign in</Btn></Link>
-            )}
-            <Link to={primaryTo}><Btn size="md">{primaryLabel}</Btn></Link>
-          </div>
-        </nav>
-      </header>
+      <MarketingNav />
 
       {/* ── Hero ────────────────────────────────────────────── */}
       <section className="relative overflow-hidden" style={bgTint}>
@@ -171,14 +163,15 @@ export default function Home() {
           {/* Copy */}
           <div className="fade-in text-center lg:text-left">
             <div className="flex justify-center lg:justify-start mb-5">
-              <Eyebrow>Livestock management for modern farms</Eyebrow>
+              <Eyebrow>Livestock, crops and bees — one farm, one login</Eyebrow>
             </div>
             <h1 className="text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.07]">
               Run your whole farm from <span style={{ color: '#15803d' }}>one dashboard</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              isibaya brings every animal, sensor, health record and feed plan together in a single
-              platform — so you spend less time on paperwork and more time farming.
+              Livestock, fruit, vegetables, grain and bees — every animal, block, spray record
+              and harvest in one place, built around the rules South African farms actually
+              answer to.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3">
@@ -226,9 +219,9 @@ export default function Home() {
       <section className="border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100">
           {[
-            ['11+', 'Species supported'],
-            ['Real-time', 'IoT sensor data'],
-            ['9', 'Modules in one place'],
+            ['11', 'Livestock species'],
+            ['47', 'Crops supported'],
+            ['65', 'SA regulation items'],
             ['24/7', 'Access anywhere'],
           ].map(([big, small]) => (
             <div key={small} className="px-4 text-center">
@@ -244,10 +237,11 @@ export default function Home() {
         <div className="text-center max-w-2xl mx-auto mb-16">
           <Eyebrow>Everything in one place</Eyebrow>
           <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-            Nine modules, one login
+            Built for the whole farm
           </h2>
           <p className="mt-4 text-slate-600 leading-relaxed">
-            isibaya replaces the spreadsheets, notebooks and guesswork with a single connected platform built for working farms.
+            Run livestock, crops or both. isibaya replaces the spreadsheets and notebooks with one
+            connected platform — and shows you only the modules you actually farm.
           </p>
         </div>
 
@@ -327,6 +321,77 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* Row 3 — crops */}
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="relative order-1">
+              <div className="rounded-3xl overflow-hidden shadow-xl ring-1 ring-black/5 aspect-[5/4]">
+                <img src={IMG.vineyard} alt="Vineyard rows in the Cape Winelands"
+                  className="w-full h-full object-cover" loading="lazy" />
+              </div>
+            </div>
+            <div className="order-2">
+              <Eyebrow>Fruit, veg &amp; grain</Eyebrow>
+              <h3 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                Spray records a packhouse will accept
+              </h3>
+              <p className="mt-4 text-slate-600 leading-relaxed">
+                Every block from planting to harvest, with the detail an auditor asks for — product,
+                active ingredient, L-number, rate and withholding period. isibaya never guesses a
+                withholding period; it does the arithmetic and warns you before a planned harvest
+                lands inside one.
+              </p>
+              <ul className="mt-6 flex flex-col gap-3">
+                {['Plantings, field operations and harvests per block',
+                  'Withholding warnings before you spray, not after',
+                  'Lot codes, grading and yield per hectare'].map(t => (
+                  <li key={t} className="flex items-start gap-3 text-sm text-slate-700">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#dcfce7' }}>
+                      <Check size={12} style={{ color: '#15803d' }} strokeWidth={3} />
+                    </span>{t}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/how-it-works/crops" className="inline-flex items-center gap-1.5 mt-6 text-sm font-bold hover:gap-2.5 transition-all" style={{ color: '#15803d' }}>
+                See how crops work <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Two ways in ─────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <Eyebrow>Go deeper</Eyebrow>
+          <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            How isibaya actually works
+          </h2>
+          <p className="mt-4 text-slate-600 leading-relaxed">
+            The detail behind each side of the farm — what gets recorded, in what order, and which
+            rules it answers to.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-6">
+          {[
+            { to: '/how-it-works/livestock', Icon: Hexagon, title: 'Livestock, dairy & bees',
+              desc: 'Tags, health records, feed, hive inspections and scales that tell you whether a flow is on.' },
+            { to: '/how-it-works/crops', Icon: Sprout, title: 'Fruit, vegetables & grain',
+              desc: 'Plantings, spray records with L-numbers, withholding periods and harvests with lot codes.' },
+          ].map((card) => (
+            <Link key={card.to} to={card.to}
+              className="group bg-white rounded-2xl p-7 border border-slate-200/70 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:border-green-200">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform group-hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
+                <card.Icon size={21} style={{ color: '#15803d' }} />
+              </div>
+              <h3 className="font-bold text-slate-900 mb-2">{card.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{card.desc}</p>
+              <span className="inline-flex items-center gap-1.5 mt-4 text-sm font-bold group-hover:gap-2.5 transition-all" style={{ color: '#15803d' }}>
+                Read more <ArrowRight size={15} />
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -422,27 +487,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────── */}
-      <footer className="bg-slate-900">
-        <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-              style={{ background: 'linear-gradient(135deg, #14532d, #15803d)' }}>🐄</div>
-            <span className="font-bold text-white">isibaya</span>
-          </div>
-          <p className="text-xs text-slate-400 order-last sm:order-none text-center">
-            © {new Date().getFullYear()} isibaya. Livestock management for modern farms.
-          </p>
-          <div className="flex items-center gap-5 text-sm flex-wrap justify-center">
-            <a href="#contact" className="text-slate-300 hover:text-white transition-colors">Contact</a>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-300 hover:text-white transition-colors">
-              {SUPPORT_EMAIL}
-            </a>
-            <Link to="/login" className="text-slate-300 hover:text-white transition-colors">Sign in</Link>
-            <Link to="/register" className="font-semibold text-green-400 hover:text-green-300 transition-colors">Create account</Link>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

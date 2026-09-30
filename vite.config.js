@@ -7,6 +7,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Pinned so it matches .claude/launch.json and the --targetPort that
+  // `netlify dev` proxies to. Left to itself Vite takes 5173, or the next
+  // free port if that is busy, and the function proxy then points at nothing
+  // — or worse, at a stale server still holding the expected port.
+  server: { port: 5174, strictPort: true },
   resolve: {
     dedupe: ['react', 'react-dom', 'react-leaflet'],
   },

@@ -4,6 +4,7 @@ import { DataProvider } from './context/DataContext';
 import { DataGate } from './components/DataGate';
 
 import Home        from './pages/Home';
+import HowItWorks from './pages/HowItWorks';
 import Login       from './pages/Login';
 import Register    from './pages/Register';
 import Payment     from './pages/Payment';
@@ -63,6 +64,7 @@ function AppRoutes() {
     <Routes>
       {/* Public marketing home */}
       <Route path="/" element={<Home />} />
+      <Route path="/how-it-works/:flow" element={<HowItWorks />} />
 
       {/* Public auth routes */}
       <Route path="/login"    element={<AuthRoute><Login /></AuthRoute>} />

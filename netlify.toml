@@ -45,3 +45,18 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# Netlify has no mapping for .webmanifest and serves it as octet-stream. With
+# nosniff set above, the browser will not look past that, so the manifest is
+# ignored and the app installs without its icons.
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Content-Type  = "application/manifest+json"
+    Cache-Control = "public, max-age=86400"
+
+# Brand artwork and icons change only when the brand does.
+[[headers]]
+  for = "/brand/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
